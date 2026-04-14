@@ -96,36 +96,121 @@ export default function ReviewScreen({ session, tags, participants, onUpdateNote
   }
 
   const handleExportCSV = () => {
-    let csv = 'Timestamp,Tag,Note\n'
-    tags.forEach(t => {
-      csv += `${formatTime(t.timestamp)},"${t.label}","${(t.note || '').replace(/"/g, '""')}"\n`
+    // Header
+    const sessionInfo = [
+      `Project,${session.projectName || ''}`,
+      `Session,${session.name}`,
+      `Date,${new Date(session.startedAt).toLocaleDateString()}`,
+      `Participants,${participants.map(p => p.name).join(' | ')}`,
+      `Total tags,${tags.length}`,
+      '',
+      'Timestamp,Tag,Tagged by,Transcript context',
+    ]
+
+    const rows = tags.map(t => {
+      // Find matching transcript line if available
+      let context = ''
+      if (mergedView) {
+        const offsetMs = offsetSec * 1000
+        let closestDiff = Infinity
+        mergedView.forEach(line => {
+          const diff = Math.abs((t.timestamp + offsetMs) - line.timestampMs)
+          if (diff < closestDiff) { closestDiff = diff; context = `${line.speaker}: ${line.text}` }
+        })
+        if (closestDiff > 120000) context = ''
+      }
+      return `${formatTime(t.timestamp)},"${t.label}","${t.taggedBy || ''}","${context.replace(/"/g, '""')}"`
     })
-    downloadBlob(csv, `${safeName()}_tags.csv`, 'text/csv')
+
+    downloadBlob([...sessionInfo, ...rows].join('\n'), `${safeName()}_tags.csv`, 'text/csv')
   }
 
   const handleExportHTML = () => {
-    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${session.name}</title>
-<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#333}
-.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;margin:2px}
-.line{padding:8px 0;border-bottom:1px solid #eee}.ts{color:#999;font-family:monospace;font-size:13px}
-h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
-<h1>${session.name}</h1>${session.participant ? `<h2>${session.participant}</h2>` : ''}
-<h2>${tags.length} tags logged</h2><hr>`
+    const participantList = participants.map(p =>
+      `<span class="pill ${p.role}">${p.name}${p.role === 'host' ? ' ★' : ''}</span>`
+    ).join(' ')
 
-    if (mergedView) {
-      mergedView.forEach(line => {
-        html += `<div class="line"><span class="ts">${line.timeLabel}</span> <strong>${line.speaker}:</strong> ${line.text}`
-        line.tags.forEach(tag => {
-          html += ` <span class="tag" style="background:${tag.color}20;color:${tag.color}">${tag.label}</span>`
+    // Tag breakdown for summary
+    const breakdown = {}
+    tags.forEach(t => { breakdown[t.label] = (breakdown[t.label] || 0) + 1 })
+    const breakdownRows = Object.entries(breakdown)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => {
+        const color = tags.find(t => t.label === label)?.color || '#999'
+        return `<span class="tag" style="background:${color}20;color:${color}">${label} (${count})</span>`
+      }).join(' ')
+
+    // Per-person breakdown
+    const byPerson = {}
+    tags.forEach(t => { byPerson[t.taggedBy || 'Unknown'] = (byPerson[t.taggedBy || 'Unknown'] || 0) + 1 })
+    const personRows = Object.entries(byPerson)
+      .map(([name, count]) => `<tr><td>${name}</td><td>${count}</td></tr>`).join('')
+
+    let html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${session.name} — .clicker report</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:860px;margin:40px auto;padding:0 24px;color:#333;line-height:1.5}
+  h1{font-size:22px;font-weight:600;margin:0 0 4px}
+  h2{font-size:14px;font-weight:600;color:#666;margin:24px 0 10px;text-transform:uppercase;letter-spacing:.05em}
+  .meta{color:#999;font-size:13px;margin-bottom:20px}
+  .pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px;background:#f3f4f6;color:#555}
+  .pill.host{background:#fee2e2;color:#e05252}
+  .tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;margin:2px}
+  .stats{display:flex;gap:16px;margin:16px 0}
+  .stat{background:#f9fafb;border:1px solid #eee;border-radius:10px;padding:12px 20px;text-align:center}
+  .stat-n{font-size:24px;font-weight:600;color:#111}
+  .stat-l{font-size:12px;color:#999;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:8px 12px;background:#f9fafb;border-bottom:2px solid #eee;font-weight:600;color:#555}
+  td{padding:8px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top}
+  tr:hover td{background:#fafafa}
+  .ts{font-family:monospace;color:#999;white-space:nowrap}
+  .context{color:#666;font-size:12px;margin-top:3px}
+  .tagger{color:#aaa;font-size:12px}
+  hr{border:none;border-top:1px solid #eee;margin:24px 0}
+</style></head><body>
+
+<p class="meta">${session.projectName ? `${session.projectName} · ` : ''}${new Date(session.startedAt).toLocaleDateString()} · ${participants.length} participant${participants.length !== 1 ? 's' : ''}</p>
+<h1>${session.name}</h1>
+<div style="margin:8px 0 16px">${participantList}</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-n">${tags.length}</div><div class="stat-l">Tags</div></div>
+  <div class="stat"><div class="stat-n">${participants.length}</div><div class="stat-l">Participants</div></div>
+  ${session.endedAt ? `<div class="stat"><div class="stat-n">${formatTime(session.endedAt - session.startedAt)}</div><div class="stat-l">Duration</div></div>` : ''}
+</div>
+
+<h2>Tag breakdown</h2>
+<div style="margin-bottom:16px">${breakdownRows}</div>
+
+${Object.keys(byPerson).length > 1 ? `<h2>Tags by person</h2>
+<table><tr><th>Name</th><th>Tags</th></tr>${personRows}</table>` : ''}
+
+<hr>
+<h2>All tags${mergedView ? ' with transcript context' : ''}</h2>
+<table>
+  <tr><th>Time</th><th>Tag</th><th>Tagged by</th>${mergedView ? '<th>Transcript</th>' : ''}</tr>`
+
+    tags.forEach(t => {
+      let context = ''
+      if (mergedView) {
+        const offsetMs = offsetSec * 1000
+        let closestDiff = Infinity
+        mergedView.forEach(line => {
+          const diff = Math.abs((t.timestamp + offsetMs) - line.timestampMs)
+          if (diff < closestDiff) { closestDiff = diff; context = `<strong>${line.speaker}:</strong> ${line.text}` }
         })
-        html += `</div>`
-      })
-    } else {
-      tags.forEach(t => {
-        html += `<div class="line"><span class="ts">${formatTime(t.timestamp)}</span> <span class="tag" style="background:${t.color}20;color:${t.color}">${t.label}</span>${t.note ? ` — ${t.note}` : ''}</div>`
-      })
-    }
-    html += `</body></html>`
+        if (closestDiff > 120000) context = ''
+      }
+      html += `<tr>
+        <td class="ts">${formatTime(t.timestamp)}</td>
+        <td><span class="tag" style="background:${t.color}20;color:${t.color}">${t.label}</span></td>
+        <td class="tagger">${t.taggedBy || ''}</td>
+        ${mergedView ? `<td class="context">${context}</td>` : ''}
+      </tr>`
+    })
+
+    html += `</table></body></html>`
     downloadBlob(html, `${safeName()}_report.html`, 'text/html')
   }
 
