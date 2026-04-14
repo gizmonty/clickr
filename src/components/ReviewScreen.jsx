@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { formatTime, parseTranscript } from '../utils/time'
 
 export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession }) {
   const [transcript, setTranscript] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [offsetSec, setOffsetSec] = useState(0)
+  const fileInputRef = useRef(null)
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -22,55 +24,96 @@ export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession
   }, [tags, filter])
 
   const uniqueLabels = [...new Set(tags.map(t => t.label))]
+  const offsetMs = offsetSec * 1000
 
-  // Merge tags into transcript lines by finding the closest timestamp
+  // Smarter matching: find the closest transcript line for each tag
   const mergedView = useMemo(() => {
     if (!transcript) return null
-    return transcript.map(line => {
-      const lineTags = filteredTags.filter(tag => {
-        const diff = Math.abs(tag.timestamp - line.timestampMs)
-        return diff < 60000 // within 1 minute
-      })
-      return { ...line, tags: lineTags }
-    })
-  }, [transcript, filteredTags])
+    const lineTagMap = new Map()
 
-  const handleExport = () => {
-    let csv = 'Timestamp,Tag,Note\n'
-    tags.forEach(t => {
-      csv += `${formatTime(t.timestamp)},${t.label},"${t.note || ''}"\n`
+    filteredTags.forEach(tag => {
+      const adjustedTs = tag.timestamp + offsetMs
+      let closestIdx = 0
+      let closestDiff = Infinity
+
+      transcript.forEach((line, idx) => {
+        const diff = Math.abs(adjustedTs - line.timestampMs)
+        if (diff < closestDiff) {
+          closestDiff = diff
+          closestIdx = idx
+        }
+      })
+
+      if (closestDiff < 120000) {
+        if (!lineTagMap.has(closestIdx)) lineTagMap.set(closestIdx, [])
+        lineTagMap.get(closestIdx).push(tag)
+      }
     })
-    const blob = new Blob([csv], { type: 'text/csv' })
+
+    return transcript.map((line, i) => ({
+      ...line,
+      tags: lineTagMap.get(i) || [],
+    }))
+  }, [transcript, filteredTags, offsetMs])
+
+  const safeName = () => session.name.replace(/[^a-zA-Z0-9]/g, '_')
+
+  const downloadBlob = (content, filename, type) => {
+    const blob = new Blob([content], { type })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${session.name.replace(/\s+/g, '_')}_tags.csv`
+    a.download = filename
     a.click()
     URL.revokeObjectURL(url)
   }
 
+  const handleExportCSV = () => {
+    let csv = 'Timestamp,Tag,Note\n'
+    tags.forEach(t => {
+      csv += `${formatTime(t.timestamp)},"${t.label}","${(t.note || '').replace(/"/g, '""')}"\n`
+    })
+    downloadBlob(csv, `${safeName()}_tags.csv`, 'text/csv')
+  }
+
+  const handleExportHTML = () => {
+    let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${session.name}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#333}
+.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;margin:2px}
+.line{padding:8px 0;border-bottom:1px solid #eee}.ts{color:#999;font-family:monospace;font-size:13px}
+h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
+<h1>${session.name}</h1>${session.participant ? `<h2>${session.participant}</h2>` : ''}
+<h2>${tags.length} tags logged</h2><hr>`
+
+    if (mergedView) {
+      mergedView.forEach(line => {
+        html += `<div class="line"><span class="ts">${line.timeLabel}</span> <strong>${line.speaker}:</strong> ${line.text}`
+        line.tags.forEach(tag => {
+          html += ` <span class="tag" style="background:${tag.color}20;color:${tag.color}">${tag.label}</span>`
+        })
+        html += `</div>`
+      })
+    } else {
+      tags.forEach(t => {
+        html += `<div class="line"><span class="ts">${formatTime(t.timestamp)}</span> <span class="tag" style="background:${t.color}20;color:${t.color}">${t.label}</span>${t.note ? ` — ${t.note}` : ''}</div>`
+      })
+    }
+    html += `</body></html>`
+    downloadBlob(html, `${safeName()}_report.html`, 'text/html')
+  }
+
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-semibold text-gray-800">{session.name}</h1>
-          {session.participant && (
-            <p className="text-sm text-gray-400">{session.participant}</p>
-          )}
+          {session.participant && <p className="text-sm text-gray-400">{session.participant}</p>}
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={onNewSession}
-            className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors cursor-pointer"
-          >
-            New session
-          </button>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={handleExportCSV} className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">CSV</button>
+          <button onClick={handleExportHTML} className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">HTML Report</button>
+          <button onClick={onNewSession} className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors cursor-pointer">New session</button>
         </div>
       </div>
 
@@ -90,11 +133,7 @@ export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession
               key={label}
               onClick={() => setFilter(label)}
               className={`px-3 py-1 text-sm rounded-full flex items-center gap-1.5 cursor-pointer ${filter === label ? 'ring-2 ring-offset-1' : 'hover:opacity-80'}`}
-              style={{
-                backgroundColor: color + '20',
-                color: color,
-                ...(filter === label ? { ringColor: color } : {}),
-              }}
+              style={{ backgroundColor: color + '20', color }}
             >
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
               {label} ({count})
@@ -103,14 +142,33 @@ export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession
         })}
       </div>
 
-      {/* Transcript upload */}
-      {!transcript && (
+      {/* Transcript upload or offset control */}
+      {!transcript ? (
         <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-6">
-          <p className="text-gray-500 mb-3">Import Google Meet transcript (.txt)</p>
+          <p className="text-gray-500 mb-1">Import transcript</p>
+          <p className="text-gray-400 text-xs mb-3">Supports Google Meet .txt, .srt, .sbv</p>
           <label className="inline-block px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm">
             Choose file
-            <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" />
+            <input ref={fileInputRef} type="file" accept=".txt,.srt,.sbv" onChange={handleFileUpload} className="hidden" />
           </label>
+        </div>
+      ) : (
+        <div className="flex items-center gap-4 mb-4 bg-white rounded-lg px-4 py-3 border border-gray-100">
+          <span className="text-sm text-gray-500 shrink-0">Offset:</span>
+          <input
+            type="range" min={-120} max={120} value={offsetSec}
+            onChange={e => setOffsetSec(Number(e.target.value))}
+            className="flex-1"
+          />
+          <span className="text-sm font-mono text-gray-600 w-16 text-right">
+            {offsetSec >= 0 ? '+' : ''}{offsetSec}s
+          </span>
+          <button
+            onClick={() => { setTranscript(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+            className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+          >
+            Remove
+          </button>
         </div>
       )}
 
@@ -130,7 +188,7 @@ export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession
                   <span className="text-sm font-medium text-gray-600">{line.speaker}: </span>
                   <span className="text-sm text-gray-700">{line.text}</span>
                   {line.tags.length > 0 && (
-                    <div className="flex gap-1.5 mt-1.5">
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       {line.tags.map(tag => (
                         <span
                           key={tag.id}
@@ -150,7 +208,7 @@ export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession
         </div>
       )}
 
-      {/* Tags-only list (always visible) */}
+      {/* Tags-only list (when no transcript) */}
       {!transcript && (
         <div className="space-y-2">
           {filteredTags.map(tag => (

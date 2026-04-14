@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function SetupScreen({ buttons, setButtons, onStart }) {
+export default function SetupScreen({ buttons, setButtons, onStart, onOpenHistory, historyCount }) {
   const [sessionName, setSessionName] = useState('')
   const [participant, setParticipant] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -22,9 +22,7 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
     }])
   }
 
-  const handleRemove = (id) => {
-    setButtons(prev => prev.filter(b => b.id !== id))
-  }
+  const handleRemove = (id) => setButtons(prev => prev.filter(b => b.id !== id))
 
   const handleMoveUp = (index) => {
     if (index === 0) return
@@ -44,16 +42,9 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
     })
   }
 
-  const startEdit = (btn) => {
-    setEditingId(btn.id)
-    setEditLabel(btn.label)
-    setEditColor(btn.color)
-  }
-
+  const startEdit = (btn) => { setEditingId(btn.id); setEditLabel(btn.label); setEditColor(btn.color) }
   const saveEdit = () => {
-    setButtons(prev => prev.map(b =>
-      b.id === editingId ? { ...b, label: editLabel, color: editColor } : b
-    ))
+    setButtons(prev => prev.map(b => b.id === editingId ? { ...b, label: editLabel, color: editColor } : b))
     setEditingId(null)
   }
 
@@ -63,6 +54,15 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
         <h1 className="text-3xl font-semibold text-gray-800">.clicker</h1>
         <p className="text-gray-500 text-sm">UXR session tagging</p>
       </div>
+
+      {historyCount > 0 && (
+        <button
+          onClick={onOpenHistory}
+          className="w-full mb-6 py-3 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+        >
+          📋 Past sessions ({historyCount})
+        </button>
+      )}
 
       <div className="space-y-5 mb-8">
         <div>
@@ -90,39 +90,24 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-gray-600">Buttons ({buttons.length})</h2>
-          <button
-            onClick={handleAdd}
-            className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer"
-          >
-            + Add
-          </button>
+          <button onClick={handleAdd} className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer">+ Add</button>
         </div>
-
         <div className="space-y-2">
           {buttons.map((btn, i) => (
             <div key={btn.id} className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 border border-gray-100">
-              <span
-                className="w-4 h-4 rounded-full shrink-0"
-                style={{ backgroundColor: btn.color }}
-              />
+              <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: btn.color }} />
               {editingId === btn.id ? (
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 flex-wrap">
                   <input
-                    type="text"
-                    value={editLabel}
-                    onChange={e => setEditLabel(e.target.value)}
+                    type="text" value={editLabel} onChange={e => setEditLabel(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && saveEdit()}
-                    className="flex-1 px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none"
-                    autoFocus
+                    className="flex-1 min-w-[100px] px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none" autoFocus
                   />
                   <div className="flex gap-1">
                     {COLORS.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setEditColor(c)}
+                      <button key={c} onClick={() => setEditColor(c)}
                         className={`w-5 h-5 rounded-full cursor-pointer ${editColor === c ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
-                        style={{ backgroundColor: c }}
-                      />
+                        style={{ backgroundColor: c }} />
                     ))}
                   </div>
                   <button onClick={saveEdit} className="text-xs text-green-600 font-medium cursor-pointer">Save</button>
@@ -131,6 +116,7 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
               ) : (
                 <>
                   <span className="flex-1 text-left text-gray-700">{btn.label}</span>
+                  <span className="text-xs text-gray-300 font-mono">{i + 1}</span>
                   <button onClick={() => handleMoveUp(i)} className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">↑</button>
                   <button onClick={() => handleMoveDown(i)} className="text-gray-400 hover:text-gray-600 text-sm cursor-pointer">↓</button>
                   <button onClick={() => startEdit(btn)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
@@ -143,6 +129,7 @@ export default function SetupScreen({ buttons, setButtons, onStart }) {
             </div>
           ))}
         </div>
+        <p className="text-xs text-gray-400 mt-2">Press 1–{buttons.length} during session for quick tagging</p>
       </div>
 
       <button

@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import SetupScreen from './components/SetupScreen'
 import SessionScreen from './components/SessionScreen'
 import ReviewScreen from './components/ReviewScreen'
+import HistoryScreen from './components/HistoryScreen'
+import { saveSessions, loadSessions, saveButtons, loadButtons } from './utils/storage'
 
 const DEFAULT_BUTTONS = [
   { id: '1', label: 'Pain point', color: '#c97070' },
@@ -13,28 +15,64 @@ const DEFAULT_BUTTONS = [
 ]
 
 export default function App() {
-  const [screen, setScreen] = useState('setup') // setup | session | review
+  const [screen, setScreen] = useState('setup')
   const [session, setSession] = useState(null)
   const [tags, setTags] = useState([])
-  const [buttons, setButtons] = useState(DEFAULT_BUTTONS)
+  const [buttons, setButtons] = useState(() => loadButtons() || DEFAULT_BUTTONS)
+  const [history, setHistory] = useState(() => loadSessions())
+  const [isPaused, setIsPaused] = useState(false)
+  const [pauseOffset, setPauseOffset] = useState(0)
+  const [pausedAt, setPausedAt] = useState(null)
+
+  // Persist buttons whenever they change
+  useEffect(() => { saveButtons(buttons) }, [buttons])
 
   const handleStartSession = (name, participant) => {
     setSession({ name, participant, startedAt: Date.now() })
     setTags([])
+    setIsPaused(false)
+    setPauseOffset(0)
+    setPausedAt(null)
     setScreen('session')
   }
 
-  const handleTag = (button, elapsedMs) => {
+  const handleTag = useCallback((button, elapsedMs, note = '') => {
     setTags(prev => [...prev, {
       id: crypto.randomUUID(),
       label: button.label,
       color: button.color,
       timestamp: elapsedMs,
-      note: '',
+      note,
     }])
-  }
+  }, [])
+
+  const handleUndo = useCallback(() => {
+    setTags(prev => prev.length > 0 ? prev.slice(0, -1) : prev)
+  }, [])
+
+  const handlePauseToggle = useCallback(() => {
+    if (isPaused) {
+      // Resume: add the paused duration to offset
+      setPauseOffset(prev => prev + (Date.now() - pausedAt))
+      setPausedAt(null)
+      setIsPaused(false)
+    } else {
+      setPausedAt(Date.now())
+      setIsPaused(true)
+    }
+  }, [isPaused, pausedAt])
 
   const handleEndSession = () => {
+    // Save to history
+    const completedSession = {
+      ...session,
+      endedAt: Date.now(),
+      tags: [...tags],
+      id: crypto.randomUUID(),
+    }
+    const updated = [completedSession, ...history]
+    setHistory(updated)
+    saveSessions(updated)
     setScreen('review')
   }
 
@@ -48,6 +86,20 @@ export default function App() {
     setTags(prev => prev.map(t => t.id === tagId ? { ...t, note } : t))
   }
 
+  const handleOpenHistory = () => setScreen('history')
+
+  const handleLoadSession = (savedSession) => {
+    setSession(savedSession)
+    setTags(savedSession.tags || [])
+    setScreen('review')
+  }
+
+  const handleDeleteSession = (sessionId) => {
+    const updated = history.filter(s => s.id !== sessionId)
+    setHistory(updated)
+    saveSessions(updated)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {screen === 'setup' && (
@@ -55,6 +107,8 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
+          onOpenHistory={handleOpenHistory}
+          historyCount={history.length}
         />
       )}
       {screen === 'session' && (
@@ -63,7 +117,12 @@ export default function App() {
           buttons={buttons}
           tags={tags}
           onTag={handleTag}
+          onUndo={handleUndo}
           onEnd={handleEndSession}
+          isPaused={isPaused}
+          pauseOffset={pauseOffset}
+          pausedAt={pausedAt}
+          onPauseToggle={handlePauseToggle}
         />
       )}
       {screen === 'review' && (
@@ -72,6 +131,14 @@ export default function App() {
           tags={tags}
           onUpdateNote={handleUpdateTagNote}
           onNewSession={handleNewSession}
+        />
+      )}
+      {screen === 'history' && (
+        <HistoryScreen
+          sessions={history}
+          onLoad={handleLoadSession}
+          onDelete={handleDeleteSession}
+          onBack={() => setScreen('setup')}
         />
       )}
     </div>
