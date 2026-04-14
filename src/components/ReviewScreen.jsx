@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { formatTime, parseTranscript } from '../utils/time'
 
-export default function ReviewScreen({ session, tags, onUpdateNote, onNewSession }) {
+export default function ReviewScreen({ session, tags, participants, onUpdateNote, onNewSession }) {
   const [transcript, setTranscript] = useState(null)
   const [filter, setFilter] = useState('all')
   const [offsetSec, setOffsetSec] = useState(0)
@@ -208,6 +208,18 @@ h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
         </div>
       )}
 
+      {/* Participants list */}
+      {participants && participants.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-xs text-gray-400">Participants:</span>
+          {participants.map((p, i) => (
+            <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-500'}`}>
+              {p.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Tags-only list (when no transcript) */}
       {!transcript && (
         <div className="space-y-2">
@@ -221,7 +233,11 @@ h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
                 style={{ backgroundColor: tag.color }}
               />
               <div className="flex-1">
-                <span className="text-sm font-medium text-gray-700">{tag.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">{tag.label}</span>
+                  {tag.taggedBy && <span className="text-xs text-gray-300">by {tag.taggedBy}</span>}
+                  {tag.participant && <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">@{tag.participant}</span>}
+                </div>
                 <input
                   type="text"
                   placeholder="Add a note..."

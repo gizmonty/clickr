@@ -1,8 +1,9 @@
 import { useState } from 'react'
 
-export default function SetupScreen({ buttons, setButtons, onStart, onOpenHistory, historyCount }) {
+export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOpenHistory, historyCount }) {
   const [sessionName, setSessionName] = useState('')
-  const [participant, setParticipant] = useState('')
+  const [hostName, setHostName] = useState('')
+  const [password, setPassword] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editLabel, setEditLabel] = useState('')
   const [editColor, setEditColor] = useState('')
@@ -55,16 +56,24 @@ export default function SetupScreen({ buttons, setButtons, onStart, onOpenHistor
         <p className="text-gray-500 text-sm">UXR session tagging</p>
       </div>
 
-      {historyCount > 0 && (
+      <div className="flex gap-2 mb-6">
         <button
-          onClick={onOpenHistory}
-          className="w-full mb-6 py-3 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={onJoin}
+          className="flex-1 py-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
         >
-          📋 Past sessions ({historyCount})
+          Join a session
         </button>
-      )}
+        {historyCount > 0 && (
+          <button
+            onClick={onOpenHistory}
+            className="flex-1 py-3 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            📋 Past sessions ({historyCount})
+          </button>
+        )}
+      </div>
 
-      <div className="space-y-5 mb-8">
+      <div className="space-y-4 mb-8">
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Session name</label>
           <input
@@ -76,12 +85,22 @@ export default function SetupScreen({ buttons, setButtons, onStart, onOpenHistor
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Participant (optional)</label>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Your name</label>
           <input
             type="text"
-            placeholder="e.g. P03"
-            value={participant}
-            onChange={e => setParticipant(e.target.value)}
+            placeholder="e.g. Sarah (host)"
+            value={hostName}
+            onChange={e => setHostName(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Session password (optional)</label>
+          <input
+            type="text"
+            placeholder="Leave empty for open access"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
           />
         </div>
@@ -133,7 +152,7 @@ export default function SetupScreen({ buttons, setButtons, onStart, onOpenHistor
       </div>
 
       <button
-        onClick={() => onStart(sessionName || 'Untitled session', participant)}
+        onClick={() => onStart(sessionName || 'Untitled session', hostName || 'Host', password)}
         className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer"
       >
         Start session

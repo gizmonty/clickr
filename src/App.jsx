@@ -3,7 +3,12 @@ import SetupScreen from './components/SetupScreen'
 import SessionScreen from './components/SessionScreen'
 import ReviewScreen from './components/ReviewScreen'
 import HistoryScreen from './components/HistoryScreen'
-import { saveSessions, loadSessions, saveButtons, loadButtons } from './utils/storage'
+import JoinScreen from './components/JoinScreen'
+import { saveButtons, loadButtons } from './utils/storage'
+import {
+  createSession, subscribeToSession, subscribeToAllSessions,
+  updateTagNote, deleteSession as deleteSessionDb,
+} from './lib/sessions'
 
 const DEFAULT_BUTTONS = [
   { id: '1', label: 'Pain point', color: '#c97070' },
@@ -15,44 +20,62 @@ const DEFAULT_BUTTONS = [
 ]
 
 export default function App() {
-  const [screen, setScreen] = useState('setup')
-  const [session, setSession] = useState(null)
-  const [tags, setTags] = useState([])
+  const [screen, setScreen] = useState('setup') // setup | join | session | review | history
+  const [sessionId, setSessionId] = useState(null)
+  const [sessionData, setSessionData] = useState(null)
+  const [userName, setUserName] = useState('')
+  const [role, setRole] = useState('host') // host | observer
   const [buttons, setButtons] = useState(() => loadButtons() || DEFAULT_BUTTONS)
-  const [history, setHistory] = useState(() => loadSessions())
+  const [history, setHistory] = useState([])
   const [isPaused, setIsPaused] = useState(false)
   const [pauseOffset, setPauseOffset] = useState(0)
   const [pausedAt, setPausedAt] = useState(null)
 
-  // Persist buttons whenever they change
+  // Persist button config locally
   useEffect(() => { saveButtons(buttons) }, [buttons])
 
-  const handleStartSession = (name, participant) => {
-    setSession({ name, participant, startedAt: Date.now() })
-    setTags([])
+  // Subscribe to all sessions for history
+  useEffect(() => {
+    const unsub = subscribeToAllSessions(setHistory)
+    return unsub
+  }, [])
+
+  // Subscribe to current session for realtime updates
+  useEffect(() => {
+    if (!sessionId) return
+    const unsub = subscribeToSession(sessionId, (data) => {
+      setSessionData(data)
+      // If session ended by host, observers go to review
+      if (data.status === 'ended' && screen === 'session') {
+        setScreen('review')
+      }
+    })
+    return unsub
+  }, [sessionId, screen])
+
+  const handleStartSession = async (name, hostName, password) => {
+    setUserName(hostName)
+    setRole('host')
+    const { id } = await createSession({ name, hostName, buttons, password })
+    setSessionId(id)
     setIsPaused(false)
     setPauseOffset(0)
     setPausedAt(null)
     setScreen('session')
   }
 
-  const handleTag = useCallback((button, elapsedMs, note = '') => {
-    setTags(prev => [...prev, {
-      id: crypto.randomUUID(),
-      label: button.label,
-      color: button.color,
-      timestamp: elapsedMs,
-      note,
-    }])
-  }, [])
-
-  const handleUndo = useCallback(() => {
-    setTags(prev => prev.length > 0 ? prev.slice(0, -1) : prev)
-  }, [])
+  const handleJoined = (id, name, joinRole) => {
+    setSessionId(id)
+    setUserName(name)
+    setRole(joinRole)
+    setIsPaused(false)
+    setPauseOffset(0)
+    setPausedAt(null)
+    setScreen('session')
+  }
 
   const handlePauseToggle = useCallback(() => {
     if (isPaused) {
-      // Resume: add the paused duration to offset
       setPauseOffset(prev => prev + (Date.now() - pausedAt))
       setPausedAt(null)
       setIsPaused(false)
@@ -63,41 +86,29 @@ export default function App() {
   }, [isPaused, pausedAt])
 
   const handleEndSession = () => {
-    // Save to history
-    const completedSession = {
-      ...session,
-      endedAt: Date.now(),
-      tags: [...tags],
-      id: crypto.randomUUID(),
-    }
-    const updated = [completedSession, ...history]
-    setHistory(updated)
-    saveSessions(updated)
     setScreen('review')
   }
 
   const handleNewSession = () => {
-    setSession(null)
-    setTags([])
+    setSessionId(null)
+    setSessionData(null)
     setScreen('setup')
   }
 
-  const handleUpdateTagNote = (tagId, note) => {
-    setTags(prev => prev.map(t => t.id === tagId ? { ...t, note } : t))
+  const handleUpdateTagNote = async (tagId, note) => {
+    if (!sessionId || !sessionData) return
+    await updateTagNote(sessionId, sessionData.tags || [], tagId, note)
   }
 
-  const handleOpenHistory = () => setScreen('history')
-
   const handleLoadSession = (savedSession) => {
-    setSession(savedSession)
-    setTags(savedSession.tags || [])
+    setSessionId(savedSession.id)
+    setSessionData(savedSession)
+    setRole('host')
     setScreen('review')
   }
 
-  const handleDeleteSession = (sessionId) => {
-    const updated = history.filter(s => s.id !== sessionId)
-    setHistory(updated)
-    saveSessions(updated)
+  const handleDeleteSession = async (id) => {
+    await deleteSessionDb(id)
   }
 
   return (
@@ -107,17 +118,23 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
-          onOpenHistory={handleOpenHistory}
+          onJoin={() => setScreen('join')}
+          onOpenHistory={() => setScreen('history')}
           historyCount={history.length}
         />
       )}
-      {screen === 'session' && (
+      {screen === 'join' && (
+        <JoinScreen
+          onJoined={handleJoined}
+          onBack={() => setScreen('setup')}
+        />
+      )}
+      {screen === 'session' && sessionData && (
         <SessionScreen
-          session={session}
-          buttons={buttons}
-          tags={tags}
-          onTag={handleTag}
-          onUndo={handleUndo}
+          sessionId={sessionId}
+          sessionData={sessionData}
+          userName={userName}
+          role={role}
           onEnd={handleEndSession}
           isPaused={isPaused}
           pauseOffset={pauseOffset}
@@ -125,10 +142,11 @@ export default function App() {
           onPauseToggle={handlePauseToggle}
         />
       )}
-      {screen === 'review' && (
+      {screen === 'review' && sessionData && (
         <ReviewScreen
-          session={session}
-          tags={tags}
+          session={sessionData}
+          tags={sessionData.tags || []}
+          participants={sessionData.participants || []}
           onUpdateNote={handleUpdateTagNote}
           onNewSession={handleNewSession}
         />

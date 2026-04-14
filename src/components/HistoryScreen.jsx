@@ -35,6 +35,7 @@ export default function HistoryScreen({ sessions, onLoad, onDelete, onBack }) {
               </div>
               <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
                 <span>{s.tags?.length || 0} tags</span>
+                <span>{s.participants?.length || 1} participant{(s.participants?.length || 1) !== 1 ? 's' : ''}</span>
                 {s.endedAt && s.startedAt && (
                   <span>Duration: {formatTime(s.endedAt - s.startedAt)}</span>
                 )}
