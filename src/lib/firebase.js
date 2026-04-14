@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: "AIzaSyA_pJH5cGh_PFQkBEVwhAXtPaW8UW06Qro",
@@ -11,5 +11,9 @@ const firebaseConfig = {
   measurementId: "G-9SWN1384BZ",
 }
 
+console.log('[Firebase] Initializing with project:', firebaseConfig.projectId)
+
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
+
+console.log('[Firebase] Firestore initialized')

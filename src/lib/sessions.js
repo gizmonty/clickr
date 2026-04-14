@@ -21,6 +21,7 @@ function generateCode() {
  */
 export async function createSession({ name, projectName, notes, hostName, buttons, password }) {
   const code = generateCode()
+  console.log('Creating session with projectId:', db.app.options.projectId)
   const docRef = await addDoc(sessionsRef, {
     name,
     projectName: projectName || '',
@@ -35,6 +36,7 @@ export async function createSession({ name, projectName, notes, hostName, button
     participants: [{ name: hostName || 'Host', role: 'host', joinedAt: Date.now() }],
     createdBy: hostName || 'Host',
   })
+  console.log('Session created with ID:', docRef.id)
   return { id: docRef.id, code }
 }
 
@@ -149,5 +151,7 @@ export function subscribeToAllSessions(callback) {
   return onSnapshot(q, (snap) => {
     const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }))
     callback(sessions)
+  }, (error) => {
+    console.error('History subscription error:', error)
   })
 }
