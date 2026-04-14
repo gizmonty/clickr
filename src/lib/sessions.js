@@ -105,6 +105,14 @@ export async function updateParticipants(sessionId, participants) {
 }
 
 /**
+ * Update session buttons (add/remove mid-session)
+ */
+export async function updateSessionButtons(sessionId, buttons) {
+  const ref = doc(db, 'sessions', sessionId)
+  await updateDoc(ref, { buttons })
+}
+
+/**
  * End a session
  */
 export async function endSession(sessionId) {

@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatTime } from '../utils/time'
-import { addTag, removeLastTag, endSession as endSessionDb } from '../lib/sessions'
+import { addTag, removeLastTag, endSession as endSessionDb, updateSessionButtons } from '../lib/sessions'
+
+const COLORS = [
+  '#c97070', '#5bb57a', '#c9a84e', '#5b8ec9',
+  '#9b6ec9', '#c96e9b', '#e07850', '#6bc9b8',
+]
 
 export default function SessionScreen({
   sessionId, sessionData, userName, role,
@@ -8,16 +13,17 @@ export default function SessionScreen({
 }) {
   const [elapsed, setElapsed] = useState(0)
   const [lastClicked, setLastClicked] = useState(null)
-  const [quickNote, setQuickNote] = useState({ show: false, text: '' })
-  const [pendingTag, setPendingTag] = useState(null)
-  const [tagParticipant, setTagParticipant] = useState('')
+  const [showAddButton, setShowAddButton] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [newColor, setNewColor] = useState(COLORS[0])
   const intervalRef = useRef(null)
-  const noteInputRef = useRef(null)
+  const addInputRef = useRef(null)
 
   const buttons = sessionData?.buttons || []
   const tags = sessionData?.tags || []
   const participants = sessionData?.participants || []
 
+  // Timer
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       if (isPaused || !sessionData?.startedAt) return
@@ -50,10 +56,8 @@ export default function SessionScreen({
       taggedBy: userName,
       participant: '',
     }
-    setPendingTag(tag)
     setLastClicked(btn.id)
     setTimeout(() => setLastClicked(null), 300)
-    // Write to Firestore immediately (no participant yet)
     await addTag(sessionId, tag)
   }, [isPaused, getElapsed, sessionId, userName])
 
@@ -67,6 +71,19 @@ export default function SessionScreen({
     onEnd()
   }
 
+  // Add new button mid-session
+  const handleAddButton = async () => {
+    if (!newLabel.trim()) return
+    const updated = [...buttons, {
+      id: crypto.randomUUID(),
+      label: newLabel.trim(),
+      color: newColor,
+    }]
+    await updateSessionButtons(sessionId, updated)
+    setNewLabel('')
+    setShowAddButton(false)
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
@@ -74,18 +91,18 @@ export default function SessionScreen({
       const num = parseInt(e.key)
       if (num >= 1 && num <= buttons.length) { e.preventDefault(); handleClick(buttons[num - 1]); return }
       if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); handleUndo(); return }
-      if (e.key === ' ') { e.preventDefault(); onPauseToggle(); return }
+      if (e.key === ' ' && role === 'host') { e.preventDefault(); onPauseToggle(); return }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [buttons, handleClick, handleUndo, onPauseToggle])
+  }, [buttons, handleClick, handleUndo, onPauseToggle, role])
 
   const tagCounts = {}
   tags.forEach(t => { tagCounts[t.label] = (tagCounts[t.label] || 0) + 1 })
 
   return (
     <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col min-h-screen">
-      {/* Header with session info + code */}
+      {/* Header */}
       <div className="text-center mb-2">
         <p className="text-sm text-gray-500">{sessionData?.name}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
@@ -101,7 +118,7 @@ export default function SessionScreen({
         </div>
       </div>
 
-      {/* Participants bar */}
+      {/* Participants */}
       <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
         {participants.map((p, i) => (
           <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-500'}`}>
@@ -118,7 +135,7 @@ export default function SessionScreen({
         {isPaused && <p className="text-amber-500 text-sm mt-1">Paused</p>}
       </div>
 
-      {/* Controls row — host only for pause */}
+      {/* Controls — pause/resume host only */}
       <div className="flex justify-center gap-3 mb-4">
         {role === 'host' && (
           <button
@@ -139,8 +156,8 @@ export default function SessionScreen({
         </button>
       </div>
 
-      {/* Tag buttons */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 flex-1 content-start mb-4">
+      {/* Tag buttons grid */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 content-start mb-2">
         {buttons.map((btn, i) => (
           <button
             key={btn.id}
@@ -153,7 +170,7 @@ export default function SessionScreen({
           >
             <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: btn.color }} />
             <span className="font-medium text-gray-700 text-sm sm:text-base flex-1">{btn.label}</span>
-            <span className="text-xs font-mono text-gray-400">{i + 1}</span>
+            {i < 9 && <span className="text-xs font-mono text-gray-400">{i + 1}</span>}
             {tagCounts[btn.label] > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-medium"
                 style={{ backgroundColor: btn.color }}>
@@ -164,6 +181,37 @@ export default function SessionScreen({
         ))}
       </div>
 
+      {/* Add button inline */}
+      {!showAddButton ? (
+        <button
+          onClick={() => { setShowAddButton(true); setTimeout(() => addInputRef.current?.focus(), 50) }}
+          className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer mb-4 self-center"
+        >
+          + Add tag button
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 mb-4 bg-white rounded-lg px-3 py-2 border border-gray-200">
+          <div className="flex gap-1 shrink-0">
+            {COLORS.map(c => (
+              <button key={c} onClick={() => setNewColor(c)}
+                className={`w-4 h-4 rounded-full cursor-pointer ${newColor === c ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                style={{ backgroundColor: c }} />
+            ))}
+          </div>
+          <input
+            ref={addInputRef}
+            type="text"
+            value={newLabel}
+            onChange={e => setNewLabel(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleAddButton(); if (e.key === 'Escape') setShowAddButton(false) }}
+            placeholder="Tag name"
+            className="flex-1 text-sm px-2 py-1 border-none focus:outline-none"
+          />
+          <button onClick={handleAddButton} className="text-xs text-green-600 font-medium cursor-pointer">Add</button>
+          <button onClick={() => setShowAddButton(false)} className="text-xs text-gray-400 cursor-pointer">Cancel</button>
+        </div>
+      )}
+
       {/* Live tag feed */}
       {tags.length > 0 && (
         <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
@@ -172,12 +220,8 @@ export default function SessionScreen({
               <span className="text-xs font-mono text-gray-400 w-14 shrink-0">{formatTime(tag.timestamp)}</span>
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
               <span className="text-sm text-gray-600 flex-1">{tag.label}</span>
-              {tag.taggedBy && (
-                <span className="text-xs text-gray-300">{tag.taggedBy}</span>
-              )}
-              {tag.participant && (
-                <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">@{tag.participant}</span>
-              )}
+              {tag.taggedBy && <span className="text-xs text-gray-300">{tag.taggedBy}</span>}
+              {tag.participant && <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">@{tag.participant}</span>}
             </div>
           ))}
         </div>
@@ -199,7 +243,7 @@ export default function SessionScreen({
       </div>
 
       <div className="text-center text-xs text-gray-300 pb-2">
-        <span className="hidden sm:inline">1–{buttons.length} tag · Z undo · Space pause</span>
+        <span className="hidden sm:inline">1–{Math.min(buttons.length, 9)} tag · Z undo{role === 'host' ? ' · Space pause' : ''}</span>
       </div>
     </div>
   )
