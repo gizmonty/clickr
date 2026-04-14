@@ -5,6 +5,7 @@ export default function ReviewScreen({ session, tags, participants, onUpdateNote
   const [transcript, setTranscript] = useState(null)
   const [filter, setFilter] = useState('all')
   const [offsetSec, setOffsetSec] = useState(0)
+  const [autoMatched, setAutoMatched] = useState(false)
   const fileInputRef = useRef(null)
 
   const handleFileUpload = (e) => {
@@ -14,6 +15,32 @@ export default function ReviewScreen({ session, tags, participants, onUpdateNote
     reader.onload = (ev) => {
       const parsed = parseTranscript(ev.target.result)
       setTranscript(parsed)
+      setAutoMatched(false)
+      // Auto-match: transcript timestamps are relative to recording start.
+      // session.startedAt is when the clicker started (ms since epoch).
+      // If transcript has absolute wall-clock timestamps we can't auto-align,
+      // but Google Meet transcripts use relative timestamps from recording start.
+      // So offset = 0 is the best default — both start at 0.
+      // However if the host started the clicker before/after the recording,
+      // we detect this by finding the first tag and the first transcript line
+      // and computing the likely offset.
+      if (parsed.length > 0 && tags.length > 0) {
+        // Find the earliest tag
+        const firstTag = [...tags].sort((a, b) => a.timestamp - b.timestamp)[0]
+        // Find the closest transcript line to that tag
+        let closestDiff = Infinity
+        let closestLineTs = 0
+        parsed.forEach(line => {
+          const diff = Math.abs(firstTag.timestamp - line.timestampMs)
+          if (diff < closestDiff) { closestDiff = diff; closestLineTs = line.timestampMs }
+        })
+        // If the closest match is within 5 minutes, auto-set offset
+        if (closestDiff < 300000) {
+          const autoOffset = Math.round((firstTag.timestamp - closestLineTs) / 1000)
+          setOffsetSec(autoOffset)
+          setAutoMatched(true)
+        }
+      }
     }
     reader.readAsText(file)
   }
@@ -147,7 +174,7 @@ h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
       {!transcript ? (
         <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center mb-6">
           <p className="text-gray-500 mb-1">Import transcript</p>
-          <p className="text-gray-400 text-xs mb-3">Supports Google Meet .txt, .srt, .sbv</p>
+          <p className="text-gray-400 text-xs mb-3">Supports Google Meet .txt, .srt, .sbv · timestamps auto-matched</p>
           <label className="inline-block px-5 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer text-sm">
             Choose file
             <input ref={fileInputRef} type="file" accept=".txt,.srt,.sbv" onChange={handleFileUpload} className="hidden" />
@@ -155,17 +182,20 @@ h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
         </div>
       ) : (
         <div className="flex items-center gap-4 mb-4 bg-white rounded-lg px-4 py-3 border border-gray-100">
-          <span className="text-sm text-gray-500 shrink-0">Offset:</span>
+          <div className="flex flex-col shrink-0">
+            <span className="text-sm text-gray-500">Offset</span>
+            {autoMatched && <span className="text-xs text-green-500">auto-matched</span>}
+          </div>
           <input
             type="range" min={-120} max={120} value={offsetSec}
-            onChange={e => setOffsetSec(Number(e.target.value))}
+            onChange={e => { setOffsetSec(Number(e.target.value)); setAutoMatched(false) }}
             className="flex-1"
           />
           <span className="text-sm font-mono text-gray-600 w-16 text-right">
             {offsetSec >= 0 ? '+' : ''}{offsetSec}s
           </span>
           <button
-            onClick={() => { setTranscript(null); if (fileInputRef.current) fileInputRef.current.value = '' }}
+            onClick={() => { setTranscript(null); setOffsetSec(0); setAutoMatched(false); if (fileInputRef.current) fileInputRef.current.value = '' }}
             className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
           >
             Remove

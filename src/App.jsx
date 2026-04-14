@@ -3,6 +3,7 @@ import WelcomeScreen from './components/WelcomeScreen'
 import SetupScreen from './components/SetupScreen'
 import SessionScreen from './components/SessionScreen'
 import ReviewScreen from './components/ReviewScreen'
+import SummaryScreen from './components/SummaryScreen'
 import HistoryScreen from './components/HistoryScreen'
 import JoinScreen from './components/JoinScreen'
 import { saveButtons, loadButtons, saveUserName, loadUserName } from './utils/storage'
@@ -106,7 +107,7 @@ export default function App() {
     }
   }, [isPaused, pausedAt])
 
-  const handleEndSession = () => setScreen('review')
+  const handleEndSession = () => setScreen('summary')
 
   const handleNewSession = () => {
     setSessionId(null)
@@ -170,6 +171,15 @@ export default function App() {
           pauseOffset={pauseOffset}
           pausedAt={pausedAt}
           onPauseToggle={handlePauseToggle}
+        />
+      )}
+      {screen === 'summary' && sessionData && (
+        <SummaryScreen
+          session={sessionData}
+          tags={sessionData.tags || []}
+          participants={sessionData.participants || []}
+          onReview={() => setScreen('review')}
+          onNewSession={handleNewSession}
         />
       )}
       {screen === 'review' && sessionData && (

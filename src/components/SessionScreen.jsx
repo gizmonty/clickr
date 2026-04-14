@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatTime } from '../utils/time'
-import { addTag, removeLastTag, endSession as endSessionDb, updateSessionButtons } from '../lib/sessions'
+import { addTag, removeLastTag, endSession as endSessionDb, updateSessionButtons, addReaction } from '../lib/sessions'
 
 const COLORS = [
   '#c97070', '#5bb57a', '#c9a84e', '#5b8ec9',
   '#9b6ec9', '#c96e9b', '#e07850', '#6bc9b8',
 ]
+
+const REACTIONS = ['👀', '🔥', '⚠️', '💡', '❓']
 
 export default function SessionScreen({
   sessionId, sessionData, userName, role,
@@ -17,13 +19,29 @@ export default function SessionScreen({
   const [newLabel, setNewLabel] = useState('')
   const [newColor, setNewColor] = useState(COLORS[0])
   const [showLog, setShowLog] = useState(true)
-  const [logFilter, setLogFilter] = useState('all') // 'all' | participantName
+  const [logFilter, setLogFilter] = useState('all')
+  const [floatingReactions, setFloatingReactions] = useState([])
   const intervalRef = useRef(null)
   const addInputRef = useRef(null)
 
   const buttons = sessionData?.buttons || []
   const tags = sessionData?.tags || []
   const participants = sessionData?.participants || []
+  const reactions = sessionData?.reactions || []
+
+  // Show incoming reactions as floating emoji
+  const prevReactionsLen = useRef(0)
+  useEffect(() => {
+    if (reactions.length > prevReactionsLen.current) {
+      const newOnes = reactions.slice(prevReactionsLen.current)
+      newOnes.forEach(r => {
+        const id = crypto.randomUUID()
+        setFloatingReactions(prev => [...prev, { ...r, floatId: id }])
+        setTimeout(() => setFloatingReactions(prev => prev.filter(f => f.floatId !== id)), 2500)
+      })
+    }
+    prevReactionsLen.current = reactions.length
+  }, [reactions])
 
   // Timer
   useEffect(() => {
@@ -79,6 +97,14 @@ export default function SessionScreen({
     await updateSessionButtons(sessionId, updated)
     setNewLabel('')
     setShowAddButton(false)
+  }
+
+  const handleReaction = async (emoji) => {
+    await addReaction(sessionId, {
+      emoji,
+      from: userName,
+      timestamp: getElapsed(),
+    })
   }
 
   // Keyboard shortcuts
@@ -147,6 +173,29 @@ export default function SessionScreen({
           className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors">
           ↩ Undo
         </button>
+      </div>
+
+      {/* Reactions bar */}
+      <div className="flex justify-center gap-2 mb-3">
+        {REACTIONS.map(emoji => (
+          <button
+            key={emoji}
+            onClick={() => handleReaction(emoji)}
+            className="text-xl w-11 h-11 rounded-xl bg-white border border-gray-100 hover:bg-gray-50 active:scale-90 transition-all cursor-pointer shadow-sm"
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+
+      {/* Floating reactions */}
+      <div className="fixed bottom-24 right-4 flex flex-col-reverse gap-1 pointer-events-none z-50">
+        {floatingReactions.map(r => (
+          <div key={r.floatId} className="flex items-center gap-1 bg-white rounded-full px-3 py-1.5 shadow-md border border-gray-100 animate-bounce text-sm">
+            <span className="text-lg">{r.emoji}</span>
+            <span className="text-xs text-gray-500">{r.from}</span>
+          </div>
+        ))}
       </div>
 
       {/* Tag buttons grid */}

@@ -117,6 +117,21 @@ export async function updateSessionButtons(sessionId, buttons) {
 }
 
 /**
+ * Add a reaction to a session
+ */
+export async function addReaction(sessionId, reaction) {
+  const ref = doc(db, 'sessions', sessionId)
+  await updateDoc(ref, {
+    reactions: arrayUnion({
+      id: crypto.randomUUID(),
+      emoji: reaction.emoji,
+      from: reaction.from,
+      timestamp: reaction.timestamp,
+    }),
+  })
+}
+
+/**
  * End a session
  */
 export async function endSession(sessionId) {
