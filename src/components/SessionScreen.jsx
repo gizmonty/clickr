@@ -16,6 +16,8 @@ export default function SessionScreen({
   const [showAddButton, setShowAddButton] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newColor, setNewColor] = useState(COLORS[0])
+  const [showLog, setShowLog] = useState(true)
+  const [logFilter, setLogFilter] = useState('all') // 'all' | participantName
   const intervalRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -71,14 +73,9 @@ export default function SessionScreen({
     onEnd()
   }
 
-  // Add new button mid-session
   const handleAddButton = async () => {
     if (!newLabel.trim()) return
-    const updated = [...buttons, {
-      id: crypto.randomUUID(),
-      label: newLabel.trim(),
-      color: newColor,
-    }]
+    const updated = [...buttons, { id: crypto.randomUUID(), label: newLabel.trim(), color: newColor }]
     await updateSessionButtons(sessionId, updated)
     setNewLabel('')
     setShowAddButton(false)
@@ -100,85 +97,75 @@ export default function SessionScreen({
   const tagCounts = {}
   tags.forEach(t => { tagCounts[t.label] = (tagCounts[t.label] || 0) + 1 })
 
+  // Filtered log
+  const filteredTags = logFilter === 'all'
+    ? tags
+    : tags.filter(t => t.taggedBy === logFilter)
+
+  // Unique taggers for filter
+  const taggers = [...new Set(tags.map(t => t.taggedBy).filter(Boolean))]
+
   return (
-    <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col min-h-screen">
+    <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 flex flex-col min-h-screen">
+
       {/* Header */}
       <div className="text-center mb-2">
-        {sessionData?.projectName && (
-          <p className="text-xs text-gray-400">{sessionData.projectName}</p>
-        )}
-        <p className="text-sm text-gray-500">{sessionData?.name}</p>
+        {sessionData?.projectName && <p className="text-xs text-gray-400">{sessionData.projectName}</p>}
+        <p className="text-sm font-medium text-gray-600">{sessionData?.name}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
-          <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">
-            {sessionData?.code}
-          </span>
-          <button
-            onClick={() => navigator.clipboard.writeText(sessionData?.code || '')}
-            className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
-          >
-            Copy
-          </button>
+          <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500">{sessionData?.code}</span>
+          <button onClick={() => navigator.clipboard.writeText(sessionData?.code || '')} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Copy</button>
         </div>
-        {sessionData?.notes && (
-          <p className="text-xs text-gray-400 mt-2 max-w-xs mx-auto">{sessionData.notes}</p>
-        )}
       </div>
 
       {/* Participants */}
-      <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
+      <div className="flex items-center justify-center gap-1.5 mb-3 flex-wrap">
         {participants.map((p, i) => (
-          <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-500'}`}>
-            {p.name}{p.role === 'host' ? ' (host)' : ''}
+          <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-500' : 'bg-gray-100 text-gray-500'}`}>
+            {p.name}{p.role === 'host' ? ' ★' : ''}
           </span>
         ))}
       </div>
 
       {/* Timer */}
-      <div className="text-center my-4 sm:my-6">
-        <div className={`text-5xl sm:text-6xl font-mono font-light tabular-nums ${isPaused ? 'text-amber-500' : 'text-gray-800'}`}>
+      <div className="text-center my-4">
+        <div className={`text-6xl font-mono font-light tabular-nums tracking-tight ${isPaused ? 'text-amber-500' : 'text-gray-800'}`}>
           {formatTime(elapsed)}
         </div>
-        {isPaused && <p className="text-amber-500 text-sm mt-1">Paused</p>}
+        {isPaused && <p className="text-amber-500 text-xs mt-1 font-medium uppercase tracking-wide">Paused</p>}
       </div>
 
-      {/* Controls — pause/resume host only */}
-      <div className="flex justify-center gap-3 mb-4">
+      {/* Controls */}
+      <div className="flex justify-center gap-2 mb-4">
         {role === 'host' && (
-          <button
-            onClick={onPauseToggle}
-            className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-              isPaused ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-            }`}
-          >
+          <button onClick={onPauseToggle}
+            className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${isPaused ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
             {isPaused ? '▶ Resume' : '⏸ Pause'}
           </button>
         )}
-        <button
-          onClick={handleUndo}
-          disabled={tags.length === 0}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
-        >
+        <button onClick={handleUndo} disabled={tags.length === 0}
+          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors">
           ↩ Undo
         </button>
       </div>
 
       {/* Tag buttons grid */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 content-start mb-2">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
         {buttons.map((btn, i) => (
           <button
             key={btn.id}
             onClick={() => handleClick(btn)}
             disabled={isPaused}
-            className={`relative flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-5 sm:py-4 rounded-xl text-left transition-all cursor-pointer
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${lastClicked === btn.id ? 'scale-95' : 'hover:scale-[1.02] active:scale-95'}`}
-            style={{ backgroundColor: btn.color + '18', border: `2px solid ${btn.color}40` }}
+            className={`relative flex items-center gap-3 px-4 py-5 rounded-2xl text-left transition-all cursor-pointer
+              disabled:opacity-50 disabled:cursor-not-allowed select-none
+              ${lastClicked === btn.id ? 'scale-95' : 'active:scale-95'}`}
+            style={{ backgroundColor: btn.color + '15', border: `2px solid ${btn.color}35` }}
           >
             <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: btn.color }} />
-            <span className="font-medium text-gray-700 text-sm sm:text-base flex-1">{btn.label}</span>
-            {i < 9 && <span className="text-xs font-mono text-gray-400">{i + 1}</span>}
+            <span className="font-medium text-gray-700 text-sm flex-1 leading-tight">{btn.label}</span>
+            {i < 9 && <span className="text-xs font-mono text-gray-300">{i + 1}</span>}
             {tagCounts[btn.label] > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-medium"
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-white text-xs flex items-center justify-center font-semibold"
                 style={{ backgroundColor: btn.color }}>
                 {tagCounts[btn.label]}
               </span>
@@ -187,20 +174,21 @@ export default function SessionScreen({
         ))}
       </div>
 
-      {/* Add button inline */}
+      {/* Add tag button — proper button, not a tiny link */}
       {!showAddButton ? (
         <button
           onClick={() => { setShowAddButton(true); setTimeout(() => addInputRef.current?.focus(), 50) }}
-          className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer mb-4 self-center"
+          className="w-full py-3 mb-4 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-600 hover:bg-white transition-all cursor-pointer active:scale-98"
         >
           + Add tag button
         </button>
       ) : (
-        <div className="flex items-center gap-2 mb-4 bg-white rounded-lg px-3 py-2 border border-gray-200">
-          <div className="flex gap-1 shrink-0">
+        <div className="mb-4 bg-white rounded-xl border border-gray-200 p-3">
+          <p className="text-xs text-gray-400 mb-2">New tag button</p>
+          <div className="flex gap-1 mb-3">
             {COLORS.map(c => (
               <button key={c} onClick={() => setNewColor(c)}
-                className={`w-4 h-4 rounded-full cursor-pointer ${newColor === c ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                className={`flex-1 h-8 rounded-lg cursor-pointer transition-transform active:scale-95 ${newColor === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : ''}`}
                 style={{ backgroundColor: c }} />
             ))}
           </div>
@@ -210,46 +198,79 @@ export default function SessionScreen({
             value={newLabel}
             onChange={e => setNewLabel(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAddButton(); if (e.key === 'Escape') setShowAddButton(false) }}
-            placeholder="Tag name"
-            className="flex-1 text-sm px-2 py-1 border-none focus:outline-none"
+            placeholder="Tag name..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 mb-2"
           />
-          <button onClick={handleAddButton} className="text-xs text-green-600 font-medium cursor-pointer">Add</button>
-          <button onClick={() => setShowAddButton(false)} className="text-xs text-gray-400 cursor-pointer">Cancel</button>
+          <div className="flex gap-2">
+            <button onClick={handleAddButton} disabled={!newLabel.trim()}
+              className="flex-1 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40">
+              Add button
+            </button>
+            <button onClick={() => { setShowAddButton(false); setNewLabel('') }}
+              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm cursor-pointer">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Live tag feed */}
+      {/* Tag log — collapsible with participant filter */}
       {tags.length > 0 && (
-        <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white">
-          {[...tags].reverse().map(tag => (
-            <div key={tag.id} className="flex items-center gap-2 px-4 py-2 border-b border-gray-50 last:border-0">
-              <span className="text-xs font-mono text-gray-400 w-14 shrink-0">{formatTime(tag.timestamp)}</span>
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
-              <span className="text-sm text-gray-600 flex-1">{tag.label}</span>
-              {tag.taggedBy && <span className="text-xs text-gray-300">{tag.taggedBy}</span>}
-              {tag.participant && <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded">@{tag.participant}</span>}
+        <div className="mb-4 border border-gray-200 rounded-xl bg-white overflow-hidden">
+          {/* Log header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowLog(v => !v)}
+                className="text-xs font-medium text-gray-500 hover:text-gray-800 cursor-pointer flex items-center gap-1">
+                {showLog ? '▾' : '▸'} {tags.length} tag{tags.length !== 1 ? 's' : ''}
+              </button>
             </div>
-          ))}
+            {/* Participant filter — only show if multiple taggers */}
+            {taggers.length > 1 && showLog && (
+              <div className="flex gap-1">
+                <button onClick={() => setLogFilter('all')}
+                  className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${logFilter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  All
+                </button>
+                {taggers.map(name => (
+                  <button key={name} onClick={() => setLogFilter(name)}
+                    className={`text-xs px-2 py-0.5 rounded-full cursor-pointer ${logFilter === name ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Log entries */}
+          {showLog && (
+            <div className="max-h-44 overflow-y-auto">
+              {[...filteredTags].reverse().map(tag => (
+                <div key={tag.id} className="flex items-center gap-2 px-4 py-2 border-b border-gray-50 last:border-0">
+                  <span className="text-xs font-mono text-gray-400 w-14 shrink-0">{formatTime(tag.timestamp)}</span>
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                  <span className="text-sm text-gray-600 flex-1">{tag.label}</span>
+                  {tag.taggedBy && tag.taggedBy !== userName && (
+                    <span className="text-xs text-gray-300">{tag.taggedBy}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* Footer */}
-      <div className="flex gap-3 pb-4">
-        <div className="flex-1 text-center text-sm text-gray-400 self-center">
-          {tags.length} tag{tags.length !== 1 ? 's' : ''}
+      <div className="flex gap-3 pb-4 mt-auto">
+        <div className="flex-1 text-center text-xs text-gray-300 self-center hidden sm:block">
+          1–{Math.min(buttons.length, 9)} tag · Z undo{role === 'host' ? ' · Space pause' : ''}
         </div>
         {role === 'host' && (
-          <button
-            onClick={handleEnd}
-            className="px-8 py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition-colors cursor-pointer"
-          >
+          <button onClick={handleEnd}
+            className="px-8 py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition-colors cursor-pointer">
             End session
           </button>
         )}
-      </div>
-
-      <div className="text-center text-xs text-gray-300 pb-2">
-        <span className="hidden sm:inline">1–{Math.min(buttons.length, 9)} tag · Z undo{role === 'host' ? ' · Space pause' : ''}</span>
       </div>
     </div>
   )
