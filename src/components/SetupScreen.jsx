@@ -43,12 +43,18 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
     setLoading(true)
     setError('')
     try {
-      await onStart({
-        projectName: projectName.trim() || '',
-        sessionName: sessionName.trim() || 'Untitled session',
-        notes: notes.trim(),
-        password: password.trim(),
-      })
+      // Timeout after 10 seconds to avoid hanging forever
+      const result = await Promise.race([
+        onStart({
+          projectName: projectName.trim() || '',
+          sessionName: sessionName.trim() || 'Untitled session',
+          notes: notes.trim(),
+          password: password.trim(),
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error(
+          'Connection timed out. Make sure Firestore is enabled in your Firebase Console (Firestore → Create database → Test mode).'
+        )), 10000)),
+      ])
     } catch (e) {
       console.error('Failed to start session:', e)
       setError(e.message || 'Failed to start session. Check your Firebase setup.')
