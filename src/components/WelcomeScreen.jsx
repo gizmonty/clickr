@@ -21,7 +21,7 @@ export default function WelcomeScreen({ onSetUser }) {
           <label className="block text-sm font-medium text-gray-600 mb-1">Your name</label>
           <input
             type="text"
-            placeholder="e.g. Sarah"
+            placeholder="e.g. Bea"
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && name.trim()) handleSubmit('create') }}
