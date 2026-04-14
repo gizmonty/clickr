@@ -19,13 +19,15 @@ function generateCode() {
 /**
  * Create a new live session in Firestore
  */
-export async function createSession({ name, hostName, buttons, password }) {
+export async function createSession({ name, projectName, notes, hostName, buttons, password }) {
   const code = generateCode()
   const docRef = await addDoc(sessionsRef, {
     name,
+    projectName: projectName || '',
+    notes: notes || '',
     code,
     password: password || '',
-    status: 'live', // live | ended
+    status: 'live',
     startedAt: Date.now(),
     endedAt: null,
     buttons,

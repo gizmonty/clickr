@@ -107,6 +107,7 @@ h1{font-size:22px}h2{font-size:16px;color:#666}</style></head><body>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
+          {session.projectName && <p className="text-xs text-gray-400 mb-0.5">{session.projectName}</p>}
           <h1 className="text-xl font-semibold text-gray-800">{session.name}</h1>
           {session.participant && <p className="text-sm text-gray-400">{session.participant}</p>}
         </div>

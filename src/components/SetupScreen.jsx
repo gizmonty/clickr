@@ -1,11 +1,15 @@
 import { useState } from 'react'
 
-export default function SetupScreen({ userName, buttons, setButtons, onStart, onJoin, onOpenHistory, onLogout, historyCount }) {
+export default function SetupScreen({ userName, buttons, setButtons, onStart, onBack, onOpenHistory, historyCount }) {
+  const [projectName, setProjectName] = useState('')
   const [sessionName, setSessionName] = useState('')
+  const [notes, setNotes] = useState('')
   const [password, setPassword] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editLabel, setEditLabel] = useState('')
   const [editColor, setEditColor] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const COLORS = [
     '#c97070', '#5bb57a', '#c9a84e', '#5b8ec9',
@@ -20,22 +24,13 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
 
   const handleRemove = (id) => setButtons(prev => prev.filter(b => b.id !== id))
 
-  const handleMoveUp = (index) => {
-    if (index === 0) return
-    setButtons(prev => {
-      const next = [...prev]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-      return next
-    })
+  const handleMoveUp = (i) => {
+    if (i === 0) return
+    setButtons(prev => { const n = [...prev]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n })
   }
 
-  const handleMoveDown = (index) => {
-    setButtons(prev => {
-      if (index >= prev.length - 1) return prev
-      const next = [...prev]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
-      return next
-    })
+  const handleMoveDown = (i) => {
+    setButtons(prev => { if (i >= prev.length - 1) return prev; const n = [...prev]; [n[i], n[i + 1]] = [n[i + 1], n[i]]; return n })
   }
 
   const startEdit = (btn) => { setEditingId(btn.id); setEditLabel(btn.label); setEditColor(btn.color) }
@@ -44,44 +39,58 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
     setEditingId(null)
   }
 
-  return (
-    <div className="max-w-lg mx-auto px-6 py-10">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-semibold text-gray-800">.clicker</h1>
-        <p className="text-gray-500 text-sm">UXR session tagging</p>
-      </div>
+  const handleStart = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await onStart({
+        projectName: projectName.trim() || '',
+        sessionName: sessionName.trim() || 'Untitled session',
+        notes: notes.trim(),
+        password: password.trim(),
+      })
+    } catch (e) {
+      console.error('Failed to start session:', e)
+      setError(e.message || 'Failed to start session. Check your Firebase setup.')
+      setLoading(false)
+    }
+  }
 
-      {/* User identity bar */}
-      <div className="flex items-center justify-between bg-white rounded-lg border border-gray-100 px-4 py-3 mb-6">
+  return (
+    <div className="max-w-lg mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={onBack} className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer">← Back</button>
         <div className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-sm font-medium">
+          <span className="w-7 h-7 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xs font-medium">
             {userName.charAt(0).toUpperCase()}
           </span>
-          <span className="text-sm font-medium text-gray-700">{userName}</span>
+          <span className="text-sm text-gray-600">{userName}</span>
         </div>
-        <button onClick={onLogout} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">
-          Switch user
-        </button>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <h1 className="text-2xl font-semibold text-gray-800 mb-6">New session</h1>
+
+      {historyCount > 0 && (
         <button
-          onClick={onJoin}
-          className="flex-1 py-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+          onClick={onOpenHistory}
+          className="w-full mb-6 py-3 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
         >
-          Join a session
+          📋 Past sessions ({historyCount})
         </button>
-        {historyCount > 0 && (
-          <button
-            onClick={onOpenHistory}
-            className="flex-1 py-3 text-sm text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-          >
-            📋 Past sessions ({historyCount})
-          </button>
-        )}
-      </div>
+      )}
 
       <div className="space-y-4 mb-8">
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Project name (optional)</label>
+          <input
+            type="text"
+            placeholder="e.g. Mobile App Redesign"
+            value={projectName}
+            onChange={e => setProjectName(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+          />
+        </div>
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Session name</label>
           <input
@@ -90,6 +99,16 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
             value={sessionName}
             onChange={e => setSessionName(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Notes (optional)</label>
+          <textarea
+            placeholder="Goals, context, things to watch for..."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none"
           />
         </div>
         <div>
@@ -104,9 +123,10 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
         </div>
       </div>
 
+      {/* Buttons config */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-gray-600">Buttons ({buttons.length})</h2>
+          <h2 className="text-sm font-medium text-gray-600">Tag buttons ({buttons.length})</h2>
           <button onClick={handleAdd} className="text-sm text-gray-500 hover:text-gray-800 cursor-pointer">+ Add</button>
         </div>
         <div className="space-y-2">
@@ -149,11 +169,18 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
         <p className="text-xs text-gray-400 mt-2">Press 1–{buttons.length} during session for quick tagging</p>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
       <button
-        onClick={() => onStart(sessionName || 'Untitled session', password)}
-        className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer"
+        onClick={handleStart}
+        disabled={loading}
+        className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Start session
+        {loading ? 'Starting...' : 'Start session'}
       </button>
     </div>
   )

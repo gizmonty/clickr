@@ -24,6 +24,7 @@ export default function HistoryScreen({ sessions, onLoad, onDelete, onBack }) {
             >
               <div className="flex items-start justify-between mb-2">
                 <div>
+                  {s.projectName && <p className="text-xs text-gray-400">{s.projectName}</p>}
                   <h3 className="font-medium text-gray-700">{s.name}</h3>
                   {s.participant && (
                     <p className="text-xs text-gray-400">{s.participant}</p>

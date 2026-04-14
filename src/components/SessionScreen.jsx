@@ -104,6 +104,9 @@ export default function SessionScreen({
     <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col min-h-screen">
       {/* Header */}
       <div className="text-center mb-2">
+        {sessionData?.projectName && (
+          <p className="text-xs text-gray-400">{sessionData.projectName}</p>
+        )}
         <p className="text-sm text-gray-500">{sessionData?.name}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
           <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">
@@ -116,6 +119,9 @@ export default function SessionScreen({
             Copy
           </button>
         </div>
+        {sessionData?.notes && (
+          <p className="text-xs text-gray-400 mt-2 max-w-xs mx-auto">{sessionData.notes}</p>
+        )}
       </div>
 
       {/* Participants */}

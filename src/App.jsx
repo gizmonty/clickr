@@ -21,7 +21,7 @@ const DEFAULT_BUTTONS = [
 ]
 
 export default function App() {
-  const [screen, setScreen] = useState('setup')
+  const [screen, setScreen] = useState('welcome')
   const [userName, setUserName] = useState(() => loadUserName() || '')
   const [sessionId, setSessionId] = useState(null)
   const [sessionData, setSessionData] = useState(null)
@@ -34,14 +34,14 @@ export default function App() {
 
   useEffect(() => { saveButtons(buttons) }, [buttons])
 
-  // Subscribe to all sessions for history
+  // Subscribe to all sessions for history once we have a user
   useEffect(() => {
     if (!userName) return
     const unsub = subscribeToAllSessions(setHistory)
     return unsub
   }, [userName])
 
-  // Subscribe to current session for realtime updates
+  // Subscribe to current session for realtime
   useEffect(() => {
     if (!sessionId) return
     const unsub = subscribeToSession(sessionId, (data) => {
@@ -53,9 +53,11 @@ export default function App() {
     return unsub
   }, [sessionId, screen])
 
-  const handleSetUser = (name) => {
+  // Welcome screen → sets user and picks next screen
+  const handleSetUser = (name, action) => {
     setUserName(name)
     saveUserName(name)
+    setScreen(action === 'join' ? 'join' : 'setup')
   }
 
   const handleLogout = () => {
@@ -63,12 +65,20 @@ export default function App() {
     saveUserName('')
     setSessionId(null)
     setSessionData(null)
-    setScreen('setup')
+    setScreen('welcome')
   }
 
-  const handleStartSession = async (name, password) => {
+  // Create session → writes to Firestore, transitions to live session
+  const handleStartSession = async ({ projectName, sessionName, notes, password }) => {
     setRole('host')
-    const { id } = await createSession({ name, hostName: userName, buttons, password })
+    const { id } = await createSession({
+      name: sessionName,
+      projectName,
+      notes,
+      hostName: userName,
+      buttons,
+      password,
+    })
     setSessionId(id)
     setIsPaused(false)
     setPauseOffset(0)
@@ -120,8 +130,8 @@ export default function App() {
     await deleteSessionDb(id)
   }
 
-  // Gate: show welcome screen if no username set
-  if (!userName) {
+  // No user yet → welcome
+  if (!userName || screen === 'welcome') {
     return (
       <div className="min-h-screen bg-gray-50">
         <WelcomeScreen onSetUser={handleSetUser} />
@@ -137,9 +147,8 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
-          onJoin={() => setScreen('join')}
+          onBack={() => { handleLogout() }}
           onOpenHistory={() => setScreen('history')}
-          onLogout={handleLogout}
           historyCount={history.length}
         />
       )}
@@ -147,7 +156,7 @@ export default function App() {
         <JoinScreen
           userName={userName}
           onJoined={handleJoined}
-          onBack={() => setScreen('setup')}
+          onBack={() => { handleLogout() }}
         />
       )}
       {screen === 'session' && sessionData && (
