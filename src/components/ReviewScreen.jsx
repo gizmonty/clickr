@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { formatTime, parseTranscript } from '../utils/time'
 
-export default function ReviewScreen({ session, tags, participants, onUpdateNote, onNewSession }) {
+export default function ReviewScreen({ session, tags, participants, onUpdateNote, onNewSession, onGoHome, onGoToProject }) {
   const [transcript, setTranscript] = useState(null)
   const [filter, setFilter] = useState('all')
   const [offsetSec, setOffsetSec] = useState(0)
@@ -216,18 +216,30 @@ ${Object.keys(byPerson).length > 1 ? `<h2>Tags by person</h2>
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-        <div>
-          {session.projectName && <p className="text-xs text-gray-400 mb-0.5">{session.projectName}</p>}
-          <h1 className="text-xl font-semibold text-gray-800">{session.name}</h1>
-          {session.participant && <p className="text-sm text-gray-400">{session.participant}</p>}
+      {/* Top nav — logo + breadcrumb */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <button onClick={onGoHome} className="font-semibold text-gray-800 hover:text-rose-500 transition-colors cursor-pointer">.clickr</button>
+          {session.projectName && (
+            <>
+              <span>›</span>
+              <button onClick={onGoToProject} className="hover:text-gray-700 cursor-pointer">{session.projectName}</button>
+              <span>›</span>
+              <span className="text-gray-600">{session.name}</span>
+            </>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={handleExportCSV} className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">CSV</button>
           <button onClick={handleExportHTML} className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">HTML Report</button>
           <button onClick={onNewSession} className="px-4 py-2 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors cursor-pointer">New session</button>
         </div>
+      </div>
+
+      {/* Session header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-800">{session.name}</h1>
+        {session.notes && <p className="text-sm text-gray-400 mt-1">{session.notes}</p>}
       </div>
 
       {/* Filter bar */}

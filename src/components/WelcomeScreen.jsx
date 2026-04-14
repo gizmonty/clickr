@@ -2,23 +2,22 @@ import { useState } from 'react'
 
 export default function WelcomeScreen({ onSetUser }) {
   const [name, setName] = useState('')
-  const [action, setAction] = useState(null) // null | 'create' | 'join'
 
-  const handleSubmit = (chosenAction) => {
+  const handleSubmit = (action) => {
     if (!name.trim()) return
-    onSetUser(name.trim(), chosenAction)
+    onSetUser(name.trim(), action)
   }
 
   return (
     <div className="max-w-sm mx-auto px-6 flex flex-col items-center justify-center min-h-screen">
       <div className="text-center mb-10">
-        <h1 className="text-4xl font-semibold text-gray-800 mb-2">.clicker</h1>
-        <p className="text-gray-500 text-sm">UXR session tagging</p>
+        <h1 className="text-4xl font-semibold text-gray-800 mb-2">.clickr</h1>
+        <p className="text-gray-500 text-sm">UXR Tagging Tool</p>
       </div>
 
       <div className="w-full space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Your name</label>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Your ldap</label>
           <input
             type="text"
             placeholder="e.g. Bea"

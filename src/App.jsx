@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import WelcomeScreen from './components/WelcomeScreen'
 import SetupScreen from './components/SetupScreen'
 import SessionScreen from './components/SessionScreen'
@@ -35,41 +35,45 @@ export default function App() {
 
   useEffect(() => { saveButtons(buttons) }, [buttons])
 
-  // Subscribe to all sessions for history once we have a user
   useEffect(() => {
     if (!userName) return
     const unsub = subscribeToAllSessions(setHistory)
     return unsub
   }, [userName])
 
-  // Subscribe to current session for realtime
   useEffect(() => {
     if (!sessionId) return
     const unsub = subscribeToSession(sessionId, (data) => {
       setSessionData(data)
       if (data.status === 'ended' && screen === 'session') {
-        setScreen('review')
+        setScreen('summary')
       }
     })
     return unsub
   }, [sessionId, screen])
 
-  // Welcome screen → sets user and picks next screen
+  // Derive unique project names from history
+  const existingProjects = useMemo(() => {
+    const names = history.map(s => s.projectName).filter(Boolean)
+    return [...new Set(names)].sort()
+  }, [history])
+
   const handleSetUser = (name, action) => {
     setUserName(name)
     saveUserName(name)
     setScreen(action === 'join' ? 'join' : 'setup')
   }
 
-  const handleLogout = () => {
-    setUserName('')
-    saveUserName('')
+  const handleGoHome = () => {
     setSessionId(null)
     setSessionData(null)
     setScreen('welcome')
   }
 
-  // Create session → writes to Firestore, transitions to live session
+  const handleGoToProject = () => {
+    setScreen('history')
+  }
+
   const handleStartSession = async ({ projectName, sessionName, notes, password }) => {
     setRole('host')
     const { id } = await createSession({
@@ -131,7 +135,6 @@ export default function App() {
     await deleteSessionDb(id)
   }
 
-  // No user yet → welcome
   if (!userName || screen === 'welcome') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -148,16 +151,17 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
-          onBack={() => { handleLogout() }}
+          onBack={handleGoHome}
           onOpenHistory={() => setScreen('history')}
           historyCount={history.length}
+          existingProjects={existingProjects}
         />
       )}
       {screen === 'join' && (
         <JoinScreen
           userName={userName}
           onJoined={handleJoined}
-          onBack={() => { handleLogout() }}
+          onBack={handleGoHome}
         />
       )}
       {screen === 'session' && sessionData && (
@@ -171,6 +175,7 @@ export default function App() {
           pauseOffset={pauseOffset}
           pausedAt={pausedAt}
           onPauseToggle={handlePauseToggle}
+          onGoHome={handleGoHome}
         />
       )}
       {screen === 'summary' && sessionData && (
@@ -180,6 +185,8 @@ export default function App() {
           participants={sessionData.participants || []}
           onReview={() => setScreen('review')}
           onNewSession={handleNewSession}
+          onGoHome={handleGoHome}
+          onGoToProject={handleGoToProject}
         />
       )}
       {screen === 'review' && sessionData && (
@@ -189,6 +196,8 @@ export default function App() {
           participants={sessionData.participants || []}
           onUpdateNote={handleUpdateTagNote}
           onNewSession={handleNewSession}
+          onGoHome={handleGoHome}
+          onGoToProject={handleGoToProject}
         />
       )}
       {screen === 'history' && (

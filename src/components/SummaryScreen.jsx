@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { formatTime } from '../utils/time'
 
-export default function SummaryScreen({ session, tags, participants, onReview, onNewSession }) {
+export default function SummaryScreen({ session, tags, participants, onReview, onNewSession, onGoHome, onGoToProject }) {
   const duration = session.endedAt && session.startedAt
     ? session.endedAt - session.startedAt
     : null
@@ -54,6 +54,17 @@ export default function SummaryScreen({ session, tags, participants, onReview, o
 
   return (
     <div className="max-w-lg mx-auto px-6 py-8">
+      {/* Logo nav */}
+      <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+        <button onClick={onGoHome} className="font-semibold text-gray-800 hover:text-rose-500 transition-colors cursor-pointer">.clickr</button>
+        {session.projectName && (
+          <>
+            <span>›</span>
+            <button onClick={onGoToProject} className="hover:text-gray-700 cursor-pointer">{session.projectName}</button>
+          </>
+        )}
+      </div>
+
       <div className="text-center mb-8">
         <p className="text-xs text-gray-400 mb-1">{session.projectName}</p>
         <h1 className="text-2xl font-semibold text-gray-800">{session.name}</h1>

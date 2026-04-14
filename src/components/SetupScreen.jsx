@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
-export default function SetupScreen({ userName, buttons, setButtons, onStart, onBack, onOpenHistory, historyCount }) {
+export default function SetupScreen({ userName, buttons, setButtons, onStart, onBack, onOpenHistory, historyCount, existingProjects }) {
+  const [projectMode, setProjectMode] = useState('new') // 'new' | 'existing'
   const [projectName, setProjectName] = useState('')
+  const [selectedProject, setSelectedProject] = useState('')
   const [sessionName, setSessionName] = useState('')
-  const [notes, setNotes] = useState('')
   const [password, setPassword] = useState('')
+  const [notes, setNotes] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editLabel, setEditLabel] = useState('')
   const [editColor, setEditColor] = useState('')
@@ -15,6 +17,9 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
     '#c97070', '#5bb57a', '#c9a84e', '#5b8ec9',
     '#9b6ec9', '#c96e9b', '#e07850', '#6bc9b8',
   ]
+
+  const activeProject = projectMode === 'new' ? projectName.trim() : selectedProject
+  const canStart = !!activeProject && !!sessionName.trim()
 
   const handleAdd = () => {
     const usedColors = buttons.map(b => b.color)
@@ -40,24 +45,24 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
   }
 
   const handleStart = async () => {
+    if (!canStart) return
     setLoading(true)
     setError('')
     try {
-      // Timeout after 10 seconds to avoid hanging forever
-      const result = await Promise.race([
+      await Promise.race([
         onStart({
-          projectName: projectName.trim() || '',
-          sessionName: sessionName.trim() || 'Untitled session',
+          projectName: activeProject,
+          sessionName: sessionName.trim(),
           notes: notes.trim(),
           password: password.trim(),
         }),
         new Promise((_, reject) => setTimeout(() => reject(new Error(
-          'Connection timed out. Make sure Firestore is enabled in your Firebase Console (Firestore → Create database → Test mode).'
+          'Connection timed out. Make sure Firestore is enabled in your Firebase Console.'
         )), 10000)),
       ])
     } catch (e) {
       console.error('Failed to start session:', e)
-      setError(e.message || 'Failed to start session. Check your Firebase setup.')
+      setError(e.message || 'Failed to start session.')
       setLoading(false)
     }
   }
@@ -87,18 +92,53 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
       )}
 
       <div className="space-y-4 mb-8">
+
+        {/* Project — required */}
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Project name (optional)</label>
-          <input
-            type="text"
-            placeholder="e.g. Mobile App Redesign"
-            value={projectName}
-            onChange={e => setProjectName(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
-          />
+          <label className="block text-sm font-medium text-gray-600 mb-1">
+            Project <span className="text-rose-400">*</span>
+          </label>
+          {/* Toggle new vs existing */}
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => setProjectMode('new')}
+              className={`flex-1 py-2 text-sm rounded-lg border cursor-pointer transition-colors ${projectMode === 'new' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+            >
+              New project
+            </button>
+            <button
+              onClick={() => setProjectMode('existing')}
+              disabled={existingProjects.length === 0}
+              className={`flex-1 py-2 text-sm rounded-lg border cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${projectMode === 'existing' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+            >
+              Existing project
+            </button>
+          </div>
+          {projectMode === 'new' ? (
+            <input
+              type="text"
+              placeholder="e.g. Mobile App Redesign"
+              value={projectName}
+              onChange={e => setProjectName(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+            />
+          ) : (
+            <select
+              value={selectedProject}
+              onChange={e => setSelectedProject(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-rose-300"
+            >
+              <option value="">Select a project...</option>
+              {existingProjects.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
         </div>
+
+        {/* Session name */}
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Session name</label>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Session name <span className="text-rose-400">*</span></label>
           <input
             type="text"
             placeholder="e.g. P03 - Onboarding usability test"
@@ -107,16 +147,8 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
             className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Notes (optional)</label>
-          <textarea
-            placeholder="Goals, context, things to watch for..."
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            rows={3}
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none"
-          />
-        </div>
+
+        {/* Password first, then notes */}
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Session password (optional)</label>
           <input
@@ -125,6 +157,17 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
             value={password}
             onChange={e => setPassword(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Notes (optional)</label>
+          <textarea
+            placeholder="Goals, context, things to watch for..."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={3}
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none"
           />
         </div>
       </div>
@@ -176,14 +219,12 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-          {error}
-        </div>
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>
       )}
 
       <button
         onClick={handleStart}
-        disabled={loading}
+        disabled={loading || !canStart}
         className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Starting...' : 'Start session'}

@@ -11,7 +11,7 @@ const REACTIONS = ['👀', '🔥', '⚠️', '💡', '❓']
 
 export default function SessionScreen({
   sessionId, sessionData, userName, role,
-  onEnd, isPaused, pauseOffset, pausedAt, onPauseToggle,
+  onEnd, isPaused, pauseOffset, pausedAt, onPauseToggle, onGoHome,
 }) {
   const [elapsed, setElapsed] = useState(0)
   const [lastClicked, setLastClicked] = useState(null)
@@ -21,6 +21,7 @@ export default function SessionScreen({
   const [showLog, setShowLog] = useState(true)
   const [logFilter, setLogFilter] = useState('all')
   const [floatingReactions, setFloatingReactions] = useState([])
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
   const intervalRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -91,6 +92,12 @@ export default function SessionScreen({
     onEnd()
   }
 
+  const handleEndConfirmed = async () => {
+    setShowEndConfirm(false)
+    await endSessionDb(sessionId)
+    onEnd()
+  }
+
   const handleAddButton = async () => {
     if (!newLabel.trim()) return
     const updated = [...buttons, { id: crypto.randomUUID(), label: newLabel.trim(), color: newColor }]
@@ -136,6 +143,7 @@ export default function SessionScreen({
 
       {/* Header */}
       <div className="text-center mb-2">
+        <button onClick={onGoHome} className="text-xs font-semibold text-gray-300 hover:text-rose-400 transition-colors cursor-pointer mb-1">.clickr</button>
         {sessionData?.projectName && <p className="text-xs text-gray-400">{sessionData.projectName}</p>}
         <p className="text-sm font-medium text-gray-600">{sessionData?.name}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
@@ -309,13 +317,37 @@ export default function SessionScreen({
         </div>
       )}
 
+      {/* End session confirmation modal */}
+      {showEndConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">End session?</h2>
+            <p className="text-sm text-gray-500 mb-6">This will stop the timer and close the session for all participants.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndConfirmed}
+                className="flex-1 py-3 bg-gray-800 text-white rounded-xl font-medium cursor-pointer hover:bg-gray-900 transition-colors"
+              >
+                End session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <div className="flex gap-3 pb-4 mt-auto">
         <div className="flex-1 text-center text-xs text-gray-300 self-center hidden sm:block">
           1–{Math.min(buttons.length, 9)} tag · Z undo{role === 'host' ? ' · Space pause' : ''}
         </div>
         {role === 'host' && (
-          <button onClick={handleEnd}
+          <button onClick={() => setShowEndConfirm(true)}
             className="px-8 py-3 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-900 transition-colors cursor-pointer">
             End session
           </button>
