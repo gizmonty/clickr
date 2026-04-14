@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 
-export default function SetupScreen({ userName, buttons, setButtons, onStart, onBack, onOpenHistory, historyCount, existingProjects }) {
+export default function SetupScreen({ userName, buttons, setButtons, onStart, onBack, onOpenHistory, historyCount, existingProjects, liveSession, onResume }) {
   const [projectMode, setProjectMode] = useState('new') // 'new' | 'existing'
   const [projectName, setProjectName] = useState('')
   const [selectedProject, setSelectedProject] = useState('')
@@ -81,6 +81,21 @@ export default function SetupScreen({ userName, buttons, setButtons, onStart, on
       </div>
 
       <h1 className="text-2xl font-semibold text-gray-800 mb-6">New session</h1>
+
+      {/* Resume live session banner */}
+      {liveSession && (
+        <button
+          onClick={() => onResume(liveSession)}
+          className="w-full mb-6 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-left hover:bg-green-100 transition-colors cursor-pointer"
+        >
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-green-800">Session in progress</p>
+            <p className="text-xs text-green-600 truncate">{liveSession.projectName && `${liveSession.projectName} · `}{liveSession.name}</p>
+          </div>
+          <span className="text-sm font-medium text-green-700 shrink-0">Resume →</span>
+        </button>
+      )}
 
       {historyCount > 0 && (
         <button

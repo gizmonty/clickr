@@ -52,11 +52,30 @@ export default function App() {
     return unsub
   }, [sessionId, screen])
 
+  // Find any live session this user is a participant of
+  const liveSession = useMemo(() => {
+    return history.find(s =>
+      s.status === 'live' &&
+      s.participants?.some(p => p.name === userName)
+    ) || null
+  }, [history, userName])
+
   // Derive unique project names from history
   const existingProjects = useMemo(() => {
     const names = history.map(s => s.projectName).filter(Boolean)
     return [...new Set(names)].sort()
   }, [history])
+
+  const handleResumeSession = (session) => {
+    setSessionId(session.id)
+    setSessionData(session)
+    const myRole = session.participants?.find(p => p.name === userName)?.role || 'observer'
+    setRole(myRole)
+    setIsPaused(false)
+    setPauseOffset(0)
+    setPausedAt(null)
+    setScreen('session')
+  }
 
   const handleSetUser = (name, action) => {
     setUserName(name)
@@ -155,6 +174,8 @@ export default function App() {
           onOpenHistory={() => setScreen('history')}
           historyCount={history.length}
           existingProjects={existingProjects}
+          liveSession={liveSession}
+          onResume={handleResumeSession}
         />
       )}
       {screen === 'join' && (

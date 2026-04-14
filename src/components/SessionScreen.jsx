@@ -22,6 +22,7 @@ export default function SessionScreen({
   const [logFilter, setLogFilter] = useState('all')
   const [floatingReactions, setFloatingReactions] = useState([])
   const [showEndConfirm, setShowEndConfirm] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const intervalRef = useRef(null)
   const addInputRef = useRef(null)
 
@@ -143,7 +144,10 @@ export default function SessionScreen({
 
       {/* Header */}
       <div className="text-center mb-2">
-        <button onClick={onGoHome} className="text-xs font-semibold text-gray-300 hover:text-rose-400 transition-colors cursor-pointer mb-1">.clickr</button>
+        <button
+          onClick={() => setShowLeaveConfirm(true)}
+          className="text-xs font-semibold text-gray-300 hover:text-rose-400 transition-colors cursor-pointer mb-1"
+        >.clickr</button>
         {sessionData?.projectName && <p className="text-xs text-gray-400">{sessionData.projectName}</p>}
         <p className="text-sm font-medium text-gray-600">{sessionData?.name}</p>
         <div className="flex items-center justify-center gap-2 mt-1">
@@ -314,6 +318,31 @@ export default function SessionScreen({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Leave session confirmation modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Leave session?</h2>
+            <p className="text-sm text-gray-500 mb-1">The session will keep running. You can rejoin from the home screen.</p>
+            <p className="text-xs text-gray-400 mb-6">Session code: <span className="font-mono font-medium">{sessionData?.code}</span></p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+              >
+                Stay
+              </button>
+              <button
+                onClick={() => { setShowLeaveConfirm(false); onGoHome() }}
+                className="flex-1 py-3 bg-gray-800 text-white rounded-xl font-medium cursor-pointer hover:bg-gray-900 transition-colors"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
