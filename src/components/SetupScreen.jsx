@@ -1,8 +1,7 @@
 import { useState } from 'react'
 
-export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOpenHistory, historyCount }) {
+export default function SetupScreen({ userName, buttons, setButtons, onStart, onJoin, onOpenHistory, onLogout, historyCount }) {
   const [sessionName, setSessionName] = useState('')
-  const [hostName, setHostName] = useState('')
   const [password, setPassword] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editLabel, setEditLabel] = useState('')
@@ -16,11 +15,7 @@ export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOp
   const handleAdd = () => {
     const usedColors = buttons.map(b => b.color)
     const nextColor = COLORS.find(c => !usedColors.includes(c)) || COLORS[0]
-    setButtons(prev => [...prev, {
-      id: crypto.randomUUID(),
-      label: 'New tag',
-      color: nextColor,
-    }])
+    setButtons(prev => [...prev, { id: crypto.randomUUID(), label: 'New tag', color: nextColor }])
   }
 
   const handleRemove = (id) => setButtons(prev => prev.filter(b => b.id !== id))
@@ -51,9 +46,22 @@ export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOp
 
   return (
     <div className="max-w-lg mx-auto px-6 py-10">
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-semibold text-gray-800">.clicker</h1>
         <p className="text-gray-500 text-sm">UXR session tagging</p>
+      </div>
+
+      {/* User identity bar */}
+      <div className="flex items-center justify-between bg-white rounded-lg border border-gray-100 px-4 py-3 mb-6">
+        <div className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-sm font-medium">
+            {userName.charAt(0).toUpperCase()}
+          </span>
+          <span className="text-sm font-medium text-gray-700">{userName}</span>
+        </div>
+        <button onClick={onLogout} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">
+          Switch user
+        </button>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -81,16 +89,6 @@ export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOp
             placeholder="e.g. P03 - Onboarding usability test"
             value={sessionName}
             onChange={e => setSessionName(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Your name</label>
-          <input
-            type="text"
-            placeholder="e.g. Sarah (host)"
-            value={hostName}
-            onChange={e => setHostName(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
           />
         </div>
@@ -152,7 +150,7 @@ export default function SetupScreen({ buttons, setButtons, onStart, onJoin, onOp
       </div>
 
       <button
-        onClick={() => onStart(sessionName || 'Untitled session', hostName || 'Host', password)}
+        onClick={() => onStart(sessionName || 'Untitled session', password)}
         className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer"
       >
         Start session

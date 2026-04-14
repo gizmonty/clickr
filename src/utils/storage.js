@@ -1,5 +1,6 @@
 const SESSIONS_KEY = 'uxr_clicker_sessions'
 const BUTTONS_KEY = 'uxr_clicker_buttons'
+const USERNAME_KEY = 'uxr_clicker_username'
 
 export function saveSessions(sessions) {
   try {
@@ -33,4 +34,12 @@ export function loadButtons() {
   } catch {
     return null
   }
+}
+
+export function saveUserName(name) {
+  try { localStorage.setItem(USERNAME_KEY, name) } catch {}
+}
+
+export function loadUserName() {
+  try { return localStorage.getItem(USERNAME_KEY) || '' } catch { return '' }
 }

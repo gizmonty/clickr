@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
+import WelcomeScreen from './components/WelcomeScreen'
 import SetupScreen from './components/SetupScreen'
 import SessionScreen from './components/SessionScreen'
 import ReviewScreen from './components/ReviewScreen'
 import HistoryScreen from './components/HistoryScreen'
 import JoinScreen from './components/JoinScreen'
-import { saveButtons, loadButtons } from './utils/storage'
+import { saveButtons, loadButtons, saveUserName, loadUserName } from './utils/storage'
 import {
   createSession, subscribeToSession, subscribeToAllSessions,
   updateTagNote, deleteSession as deleteSessionDb,
@@ -20,32 +21,31 @@ const DEFAULT_BUTTONS = [
 ]
 
 export default function App() {
-  const [screen, setScreen] = useState('setup') // setup | join | session | review | history
+  const [screen, setScreen] = useState('setup')
+  const [userName, setUserName] = useState(() => loadUserName() || '')
   const [sessionId, setSessionId] = useState(null)
   const [sessionData, setSessionData] = useState(null)
-  const [userName, setUserName] = useState('')
-  const [role, setRole] = useState('host') // host | observer
+  const [role, setRole] = useState('host')
   const [buttons, setButtons] = useState(() => loadButtons() || DEFAULT_BUTTONS)
   const [history, setHistory] = useState([])
   const [isPaused, setIsPaused] = useState(false)
   const [pauseOffset, setPauseOffset] = useState(0)
   const [pausedAt, setPausedAt] = useState(null)
 
-  // Persist button config locally
   useEffect(() => { saveButtons(buttons) }, [buttons])
 
   // Subscribe to all sessions for history
   useEffect(() => {
+    if (!userName) return
     const unsub = subscribeToAllSessions(setHistory)
     return unsub
-  }, [])
+  }, [userName])
 
   // Subscribe to current session for realtime updates
   useEffect(() => {
     if (!sessionId) return
     const unsub = subscribeToSession(sessionId, (data) => {
       setSessionData(data)
-      // If session ended by host, observers go to review
       if (data.status === 'ended' && screen === 'session') {
         setScreen('review')
       }
@@ -53,10 +53,22 @@ export default function App() {
     return unsub
   }, [sessionId, screen])
 
-  const handleStartSession = async (name, hostName, password) => {
-    setUserName(hostName)
+  const handleSetUser = (name) => {
+    setUserName(name)
+    saveUserName(name)
+  }
+
+  const handleLogout = () => {
+    setUserName('')
+    saveUserName('')
+    setSessionId(null)
+    setSessionData(null)
+    setScreen('setup')
+  }
+
+  const handleStartSession = async (name, password) => {
     setRole('host')
-    const { id } = await createSession({ name, hostName, buttons, password })
+    const { id } = await createSession({ name, hostName: userName, buttons, password })
     setSessionId(id)
     setIsPaused(false)
     setPauseOffset(0)
@@ -66,7 +78,6 @@ export default function App() {
 
   const handleJoined = (id, name, joinRole) => {
     setSessionId(id)
-    setUserName(name)
     setRole(joinRole)
     setIsPaused(false)
     setPauseOffset(0)
@@ -85,9 +96,7 @@ export default function App() {
     }
   }, [isPaused, pausedAt])
 
-  const handleEndSession = () => {
-    setScreen('review')
-  }
+  const handleEndSession = () => setScreen('review')
 
   const handleNewSession = () => {
     setSessionId(null)
@@ -111,20 +120,32 @@ export default function App() {
     await deleteSessionDb(id)
   }
 
+  // Gate: show welcome screen if no username set
+  if (!userName) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <WelcomeScreen onSetUser={handleSetUser} />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {screen === 'setup' && (
         <SetupScreen
+          userName={userName}
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
           onJoin={() => setScreen('join')}
           onOpenHistory={() => setScreen('history')}
+          onLogout={handleLogout}
           historyCount={history.length}
         />
       )}
       {screen === 'join' && (
         <JoinScreen
+          userName={userName}
           onJoined={handleJoined}
           onBack={() => setScreen('setup')}
         />
