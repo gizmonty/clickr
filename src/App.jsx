@@ -11,6 +11,7 @@ import {
   createSession, subscribeToSession, subscribeToAllSessions,
   updateTagNote, deleteSession as deleteSessionDb,
 } from './lib/sessions'
+import { registerPresence, startHeartbeat, clearPresence } from './lib/presence'
 
 const DEFAULT_BUTTONS = [
   { id: '1', label: 'Pain point', color: '#c97070' },
@@ -34,6 +35,22 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState(null)
 
   useEffect(() => { saveButtons(buttons) }, [buttons])
+
+  // Register presence + heartbeat when user is set, clean up on logout/unload
+  useEffect(() => {
+    if (!userName) return
+    registerPresence(userName).catch(() => {})
+    const stopHeartbeat = startHeartbeat(userName)
+
+    // Clear presence when tab closes or refreshes
+    const handleUnload = () => clearPresence(userName)
+    window.addEventListener('beforeunload', handleUnload)
+
+    return () => {
+      stopHeartbeat()
+      window.removeEventListener('beforeunload', handleUnload)
+    }
+  }, [userName])
 
   useEffect(() => {
     if (!userName) return
@@ -84,6 +101,15 @@ export default function App() {
   }
 
   const handleGoHome = () => {
+    setSessionId(null)
+    setSessionData(null)
+    setScreen('welcome')
+  }
+
+  const handleLogout = async () => {
+    await clearPresence(userName)
+    setUserName('')
+    saveUserName('')
     setSessionId(null)
     setSessionData(null)
     setScreen('welcome')
@@ -170,7 +196,7 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
-          onBack={handleGoHome}
+          onBack={handleLogout}
           onOpenHistory={() => setScreen('history')}
           historyCount={history.length}
           existingProjects={existingProjects}
@@ -182,7 +208,7 @@ export default function App() {
         <JoinScreen
           userName={userName}
           onJoined={handleJoined}
-          onBack={handleGoHome}
+          onBack={handleLogout}
         />
       )}
       {screen === 'session' && sessionData && (
