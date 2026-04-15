@@ -42,18 +42,18 @@ export default function WelcomeScreen({ onSetUser }) {
             <label className="block text-sm font-medium text-gray-600 mb-1">Your ldap</label>
             <input
               type="text"
-              placeholder="e.g. Bea"
+              placeholder="e.g. beab"
               value={name}
               onChange={e => { setName(e.target.value); setError('') }}
               onKeyDown={e => { if (e.key === 'Enter' && name.trim()) handleSubmit('create') }}
               autoFocus
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300 text-center text-lg"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 text-center text-lg"
             />
             {error && <p className="mt-2 text-sm text-red-500 text-center leading-snug">{error}</p>}
           </div>
 
           <button onClick={() => handleSubmit('create')} disabled={!name.trim() || loading}
-            className="w-full py-4 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-medium rounded-xl text-lg hover:from-rose-500 hover:to-rose-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            className="w-full py-4 bg-gradient-to-r from-blue-400 to-blue-500 text-white font-medium rounded-xl text-lg hover:from-blue-500 hover:to-blue-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? 'Checking...' : 'Create a session'}
           </button>
 

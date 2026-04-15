@@ -15,7 +15,7 @@ export default function TopBar({ onLogoClick, left, right }) {
       {/* Centered logo */}
       <button
         onClick={onLogoClick}
-        className="text-xl font-semibold text-gray-800 hover:text-rose-500 transition-colors cursor-pointer tracking-tight"
+        className="text-xl font-semibold text-gray-800 hover:text-blue-500 transition-colors cursor-pointer tracking-tight"
       >
         .clickr
       </button>

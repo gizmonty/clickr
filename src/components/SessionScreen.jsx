@@ -151,18 +151,31 @@ export default function SessionScreen({
           </div>
         }
         right={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500">{sessionData?.code}</span>
             <button onClick={() => navigator.clipboard.writeText(sessionData?.code || '')} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Copy</button>
+            <div className="w-px h-4 bg-gray-200" />
+            <button className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity">
+              <span className="text-sm text-gray-600 hidden sm:block">{userName}</span>
+              <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center text-xs font-medium">
+                {userName.charAt(0).toUpperCase()}
+              </span>
+            </button>
           </div>
         }
       />
 
       <div className="max-w-lg mx-auto px-4 sm:px-6 py-4 flex flex-col" style={{ minHeight: 'calc(100vh - 57px)' }}>
+      {/* Session code */}
+      <div className="flex items-center justify-center gap-2 mt-2 mb-1">
+        <span className="text-xs font-mono bg-gray-100 px-2.5 py-1 rounded text-gray-500 tracking-wider">{sessionData?.code}</span>
+        <button onClick={() => navigator.clipboard.writeText(sessionData?.code || '')} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Copy</button>
+      </div>
+
       {/* Participants */}
-      <div className="flex items-center justify-center gap-1.5 mb-3 flex-wrap mt-2">
+      <div className="flex items-center justify-center gap-1.5 mb-3 flex-wrap">
         {participants.map((p, i) => (
-          <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-500' : 'bg-gray-100 text-gray-500'}`}>
+          <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-500'}`}>
             {p.name}{p.role === 'host' ? ' ★' : ''}
           </span>
         ))}
@@ -263,7 +276,7 @@ export default function SessionScreen({
             onChange={e => setNewLabel(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleAddButton(); if (e.key === 'Escape') setShowAddButton(false) }}
             placeholder="Tag name..."
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 mb-2"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2"
           />
           <div className="flex gap-2">
             <button onClick={handleAddButton} disabled={!newLabel.trim()}

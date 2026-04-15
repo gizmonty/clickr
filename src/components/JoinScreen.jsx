@@ -63,7 +63,7 @@ export default function JoinScreen({ userName, onJoined, onBack }) {
               value={code}
               onChange={e => setCode(e.target.value.toUpperCase())}
               autoFocus
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 text-center text-2xl font-mono tracking-widest placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-rose-300 uppercase"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 text-center text-2xl font-mono tracking-widest placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-300 uppercase"
             />
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
@@ -92,14 +92,14 @@ export default function JoinScreen({ userName, onJoined, onBack }) {
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoFocus
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-300"
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <button
             onClick={handleJoin}
             disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-rose-400 to-rose-500 text-white rounded-xl font-medium hover:from-rose-500 hover:to-rose-600 disabled:opacity-50 cursor-pointer transition-all"
+            className="w-full py-3 bg-gradient-to-r from-blue-400 to-blue-500 text-white rounded-xl font-medium hover:from-blue-500 hover:to-blue-600 disabled:opacity-50 cursor-pointer transition-all"
           >
             {loading ? 'Joining...' : 'Join session'}
           </button>

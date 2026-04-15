@@ -351,7 +351,7 @@ ${Object.keys(byPerson).length > 1 ? `<h2>Tags by person</h2>
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <span className="text-xs text-gray-400">Participants:</span>
           {participants.map((p, i) => (
-            <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-500'}`}>
+            <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
               {p.name}
             </span>
           ))}

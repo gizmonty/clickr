@@ -64,7 +64,7 @@ export default function App() {
     const unsub = subscribeToSession(sessionId, (data) => {
       setSessionData(data)
       if (data.status === 'ended' && screen === 'session') {
-        setScreen('summary')
+        setScreen('review')
       }
     })
     return unsub
@@ -165,7 +165,7 @@ export default function App() {
     }
   }, [isPaused, pausedAt])
 
-  const handleEndSession = () => setScreen('summary')
+  const handleEndSession = () => setScreen('review')
 
   const handleNewSession = () => {
     setSessionId(null)
