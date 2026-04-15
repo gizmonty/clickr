@@ -33,6 +33,7 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false)
   const [pauseOffset, setPauseOffset] = useState(0)
   const [pausedAt, setPausedAt] = useState(null)
+  const [historyProject, setHistoryProject] = useState(null)
 
   useEffect(() => { saveButtons(buttons) }, [buttons])
 
@@ -101,6 +102,13 @@ export default function App() {
   }
 
   const handleGoHome = () => {
+    // When logged in, logo goes to setup (create/join choice), not welcome
+    setSessionId(null)
+    setSessionData(null)
+    setScreen('setup')
+  }
+
+  const handleGoToWelcome = () => {
     setSessionId(null)
     setSessionData(null)
     setScreen('welcome')
@@ -116,6 +124,7 @@ export default function App() {
   }
 
   const handleGoToProject = () => {
+    setHistoryProject(sessionData?.projectName || null)
     setScreen('history')
   }
 
@@ -196,8 +205,9 @@ export default function App() {
           buttons={buttons}
           setButtons={setButtons}
           onStart={handleStartSession}
-          onBack={handleLogout}
-          onOpenHistory={() => setScreen('history')}
+          onLogoClick={handleGoToWelcome}
+          onLogout={handleLogout}
+          onOpenHistory={() => { setHistoryProject(null); setScreen('history') }}
           historyCount={history.length}
           existingProjects={existingProjects}
           liveSession={liveSession}
@@ -232,7 +242,7 @@ export default function App() {
           participants={sessionData.participants || []}
           onReview={() => setScreen('review')}
           onNewSession={handleNewSession}
-          onGoHome={handleGoHome}
+          onLogoClick={handleGoHome}
           onGoToProject={handleGoToProject}
         />
       )}
@@ -243,7 +253,7 @@ export default function App() {
           participants={sessionData.participants || []}
           onUpdateNote={handleUpdateTagNote}
           onNewSession={handleNewSession}
-          onGoHome={handleGoHome}
+          onLogoClick={handleGoHome}
           onGoToProject={handleGoToProject}
         />
       )}
@@ -253,6 +263,8 @@ export default function App() {
           onLoad={handleLoadSession}
           onDelete={handleDeleteSession}
           onBack={() => setScreen('setup')}
+          onLogoClick={handleGoHome}
+          initialProject={historyProject}
         />
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { formatTime } from '../utils/time'
 import { addTag, removeLastTag, endSession as endSessionDb, updateSessionButtons, addReaction } from '../lib/sessions'
+import TopBar from './TopBar'
 
 const COLORS = [
   '#c97070', '#5bb57a', '#c9a84e', '#5b8ec9',
@@ -140,24 +141,26 @@ export default function SessionScreen({
   const taggers = [...new Set(tags.map(t => t.taggedBy).filter(Boolean))]
 
   return (
-    <div className="max-w-lg mx-auto px-4 sm:px-6 py-6 flex flex-col min-h-screen">
+    <div className="min-h-screen bg-gray-50">
+      <TopBar
+        onLogoClick={() => setShowLeaveConfirm(true)}
+        left={
+          <div className="text-center">
+            {sessionData?.projectName && <p className="text-xs text-gray-400 leading-none">{sessionData.projectName}</p>}
+            <p className="text-xs font-medium text-gray-600">{sessionData?.name}</p>
+          </div>
+        }
+        right={
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500">{sessionData?.code}</span>
+            <button onClick={() => navigator.clipboard.writeText(sessionData?.code || '')} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Copy</button>
+          </div>
+        }
+      />
 
-      {/* Header */}
-      <div className="text-center mb-2">
-        <button
-          onClick={() => setShowLeaveConfirm(true)}
-          className="text-xs font-semibold text-gray-300 hover:text-rose-400 transition-colors cursor-pointer mb-1"
-        >.clickr</button>
-        {sessionData?.projectName && <p className="text-xs text-gray-400">{sessionData.projectName}</p>}
-        <p className="text-sm font-medium text-gray-600">{sessionData?.name}</p>
-        <div className="flex items-center justify-center gap-2 mt-1">
-          <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500">{sessionData?.code}</span>
-          <button onClick={() => navigator.clipboard.writeText(sessionData?.code || '')} className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer">Copy</button>
-        </div>
-      </div>
-
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-4 flex flex-col" style={{ minHeight: 'calc(100vh - 57px)' }}>
       {/* Participants */}
-      <div className="flex items-center justify-center gap-1.5 mb-3 flex-wrap">
+      <div className="flex items-center justify-center gap-1.5 mb-3 flex-wrap mt-2">
         {participants.map((p, i) => (
           <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${p.role === 'host' ? 'bg-rose-100 text-rose-500' : 'bg-gray-100 text-gray-500'}`}>
             {p.name}{p.role === 'host' ? ' ★' : ''}
@@ -382,6 +385,7 @@ export default function SessionScreen({
           </button>
         )}
       </div>
+    </div>
     </div>
   )
 }
