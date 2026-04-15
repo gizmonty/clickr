@@ -32,8 +32,10 @@ export default function WelcomeScreen({ onSetUser }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
-      <div className="max-w-sm mx-auto px-6 flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 57px)' }}>
-        <p className="text-gray-500 text-sm mb-10">UXR Tagging Tool</p>
+      <div className="max-w-sm mx-auto px-6 flex flex-col items-center justify-center min-h-[calc(100vh-57px)]">
+        <div className="text-center mb-8">
+          <p className="text-gray-500 text-sm">UXR Tagging Tool</p>
+        </div>
 
         <div className="w-full space-y-4">
           <div>
